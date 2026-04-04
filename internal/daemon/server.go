@@ -46,10 +46,13 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	mux.HandleFunc("/api/v1/scheduler", s.handleScheduler)
 	mux.HandleFunc("/api/v1/retention/preview", s.handleRetentionPreview)
 	mux.HandleFunc("/api/v1/protect/compose", s.handleProtectCompose)
+	mux.HandleFunc("/api/v1/protect/kube", s.handleProtectKube)
 	mux.HandleFunc("/api/v1/restore/artifact", s.handleRestoreArtifact)
 	mux.HandleFunc("/api/v1/guard/compose", s.handleGuardCompose)
 	mux.HandleFunc("/api/v1/intercept/compose", s.handleInterceptCompose)
+	mux.HandleFunc("/api/v1/intercept/docker", s.handleInterceptDocker)
 	mux.HandleFunc("/api/v1/guard/kube-delete", s.handleGuardKubeDelete)
+	mux.HandleFunc("/api/v1/enforce/kube-delete", s.handleEnforceKubeDelete)
 
 	s.http = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.Daemon.Host, cfg.Daemon.Port),
@@ -146,6 +149,20 @@ func (s *Server) handleRestoreArtifact(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (s *Server) handleProtectKube(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path query parameter", http.StatusBadRequest)
+		return
+	}
+	result, err := s.control.ProtectKubernetes(r.Context(), path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (s *Server) handleGuardCompose(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
@@ -196,6 +213,21 @@ func (s *Server) handleInterceptCompose(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (s *Server) handleInterceptDocker(w http.ResponseWriter, r *http.Request) {
+	args := r.URL.Query()["arg"]
+	if len(args) == 0 {
+		http.Error(w, "missing arg query parameters", http.StatusBadRequest)
+		return
+	}
+	execute := r.URL.Query().Get("execute") == "true"
+	result, err := s.control.InterceptDockerArgs(r.Context(), args, execute)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (s *Server) handleGuardKubeDelete(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
@@ -203,6 +235,20 @@ func (s *Server) handleGuardKubeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := s.control.GuardKubeDelete(path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleEnforceKubeDelete(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path query parameter", http.StatusBadRequest)
+		return
+	}
+	result, err := s.control.EnforceKubeDelete(r.Context(), path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

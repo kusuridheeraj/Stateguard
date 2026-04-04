@@ -50,6 +50,7 @@ The current runtime path now includes:
 - daemon and dashboard API endpoints that expose the same protect, guard, and intercept behavior
 - installer-created wrapper commands that route Compose intent through Stateguard
 - optional live backup execution for Compose workloads when `runtime.compose.live_execution` is enabled
+- raw Docker argument interception for Compose-scoped destructive intent and policy-aware evaluation for `docker volume rm` and `docker system prune`
 
 ### Dashboard
 
@@ -99,6 +100,8 @@ Each persisted recovery bundle now contains:
 
 For `Postgres`, `Redis`, and `Vault`, the orchestration layer now also emits concrete execution metadata that can be used for live backup command execution or restore validation.
 
+`MySQL`, `MongoDB`, and `Kafka` now also emit concrete execution and persisted restore metadata, so the entire initial official adapter set has moved beyond manifest-only restore semantics.
+
 ## Protection Lifecycle
 
 1. Discover workloads and infer application boundaries.
@@ -114,6 +117,8 @@ In the current implementation phase, the orchestration path is able to simulate 
 The current execution track now includes concrete manifest generation and validation logic for the full initial official adapter set, with orchestrator tests that verify multi-service Compose flows.
 
 The first restore orchestration path is now wired through artifact lookup, adapter selection, and adapter-specific restore validation using the persisted bundle metadata.
+
+Kubernetes support now includes a protect-before-delete enforcement path that generates artifacts for detected stateful resources in a manifest before evaluating delete safety.
 
 ## Hybrid Validation
 

@@ -155,3 +155,25 @@ func TestProtectComposeCreatesServiceSpecificArtifacts(t *testing.T) {
 		}
 	}
 }
+
+func TestProtectKubernetesCreatesArtifactsForStatefulResources(t *testing.T) {
+	temp := t.TempDir()
+	manifestPath := filepath.Join(temp, "manifests.yaml")
+	content := []byte("apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: postgres\n  namespace: demo\nspec:\n  template:\n    spec:\n      containers:\n        - name: postgres\n          image: postgres:16\n")
+	if err := os.WriteFile(manifestPath, content, 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	store, err := artifacts.NewStore(filepath.Join(temp, "artifacts"))
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	registry := sdk.NewRegistry(postgres.New(), generic.New())
+	report, err := NewProtector(store, registry).ProtectKubernetes(context.Background(), manifestPath)
+	if err != nil {
+		t.Fatalf("protect kubernetes: %v", err)
+	}
+	if report.Created == 0 {
+		t.Fatalf("expected kubernetes artifacts, got %#v", report)
+	}
+}

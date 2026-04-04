@@ -90,6 +90,7 @@ Unknown or weakly configured workloads may still receive generic or emergency pr
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Handoff Context](docs/handoff-context.md)
+- [Manual Validation](docs/manual-validation.md)
 - [Execution Prompt Pack](docs/agents/execution-prompt-pack.md)
 - [Content Prompt Pack](docs/agents/content-prompt-pack.md)
 - [Windows + WSL2 Setup](docs/setup/windows-wsl2.md)
@@ -162,6 +163,13 @@ Current adapter-wave improvements:
 - concrete service-aware manifest and validation behavior for MySQL, MongoDB, and Kafka
 - orchestration coverage for the full initial official adapter set
 
+Current completion-wave improvements:
+
+- concrete live execution plans and persisted restore semantics now also exist for `MySQL`, `MongoDB`, and `Kafka`
+- raw Docker argument interception can now parse and evaluate `docker compose ...`, `docker volume rm`, and `docker system prune` intent
+- Kubernetes now has protect and enforce-delete flows, not only inspect and guard-delete
+- release automation scaffolding now includes `.goreleaser.yaml`, a GitHub release workflow, and a manual validation checklist
+
 Current enforcement-track improvements:
 
 - first guard/evaluation layer for risky Compose operations
@@ -196,15 +204,21 @@ Dashboard and API surfaces:
 - `/api/v1/retention/preview`
 - `/api/v1/guard/compose`
 - `/api/v1/protect/compose`
+- `/api/v1/protect/kube`
 - `/api/v1/restore/artifact`
 - `/api/v1/intercept/compose`
+- `/api/v1/intercept/docker`
 - `/api/v1/guard/kube-delete`
+- `/api/v1/enforce/kube-delete`
 - `/api/v1/daemon/status`
 - `/api/v1/daemon/protect/compose`
+- `/api/v1/daemon/protect/kube`
 - `/api/v1/daemon/restore/artifact`
 - `/api/v1/daemon/guard/compose`
 - `/api/v1/daemon/intercept/compose`
+- `/api/v1/daemon/intercept/docker`
 - `/api/v1/daemon/guard/kube-delete`
+- `/api/v1/daemon/enforce/kube-delete`
 
 ## License
 

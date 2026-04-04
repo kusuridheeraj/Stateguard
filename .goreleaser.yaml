@@ -1,0 +1,40 @@
+project_name: stateguard
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: stateguard-cli
+    main: ./cmd/cli
+    binary: stateguard
+    goos: [windows, linux, darwin]
+    goarch: [amd64]
+    ldflags:
+      - -s -w -X github.com/kusuridheeraj/stateguard/internal/app.buildInfo.Version={{.Version}} -X github.com/kusuridheeraj/stateguard/internal/app.buildInfo.Commit={{.Commit}} -X github.com/kusuridheeraj/stateguard/internal/app.buildInfo.Date={{.Date}}
+  - id: stateguard-daemon
+    main: ./cmd/daemon
+    binary: stateguardd
+    goos: [windows, linux, darwin]
+    goarch: [amd64]
+  - id: stateguard-dashboard-api
+    main: ./cmd/dashboard-api
+    binary: stateguard-dashboard-api
+    goos: [windows, linux, darwin]
+    goarch: [amd64]
+
+archives:
+  - id: bundles
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - install/**
+      - docs/setup/**
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  draft: true

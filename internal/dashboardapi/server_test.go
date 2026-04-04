@@ -249,3 +249,42 @@ func TestDaemonRestoreArtifactEndpoint(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestDaemonProtectKubeAndInterceptDockerEndpoints(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("unable to resolve current file path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", ".."))
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("chdir repo root: %v", err)
+	}
+	defer func() { _ = os.Chdir(previous) }()
+
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	server, err := NewServer(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+
+	reqProtect := httptest.NewRequest(http.MethodGet, "/api/v1/daemon/protect/kube?path=examples/kubernetes-beta/manifests.yaml", nil)
+	recProtect := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recProtect, reqProtect)
+	if recProtect.Code != http.StatusOK {
+		t.Fatalf("expected kube protect 200, got %d body=%s", recProtect.Code, recProtect.Body.String())
+	}
+
+	reqIntercept := httptest.NewRequest(http.MethodGet, "/api/v1/daemon/intercept/docker?arg=compose&arg=-f&arg=examples/windows-wsl2-compose/compose.yaml&arg=down&arg=-v", nil)
+	recIntercept := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recIntercept, reqIntercept)
+	if recIntercept.Code != http.StatusOK {
+		t.Fatalf("expected docker intercept 200, got %d body=%s", recIntercept.Code, recIntercept.Body.String())
+	}
+}

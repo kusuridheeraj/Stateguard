@@ -165,6 +165,36 @@ func buildCommands(serviceType string, composePath string, serviceName string) (
 				},
 			},
 		}, ""
+	case "mysql":
+		return []commandDefinition{
+			{
+				FileName: "backup.mysql.json",
+				Command: []string{
+					"docker", "compose", "-f", composePath, "exec", "-T", serviceName, "sh", "-lc",
+					"mysqldump --all-databases --single-transaction --quick",
+				},
+			},
+		}, ""
+	case "mongodb":
+		return []commandDefinition{
+			{
+				FileName: "backup.mongodb.json",
+				Command: []string{
+					"docker", "compose", "-f", composePath, "exec", "-T", serviceName, "sh", "-lc",
+					"mongodump --archive --gzip",
+				},
+			},
+		}, ""
+	case "kafka":
+		return []commandDefinition{
+			{
+				FileName: "backup.kafka.json",
+				Command: []string{
+					"docker", "compose", "-f", composePath, "exec", "-T", serviceName, "sh", "-lc",
+					"for path in /var/lib/kafka /bitnami/kafka /var/lib/redpanda; do if [ -d \"$path\" ]; then find \"$path\" -maxdepth 2 -type f | sort; fi; done",
+				},
+			},
+		}, ""
 	default:
 		return nil, fmt.Sprintf("no live compose backup execution plan for service type %q; bundle remains plan-only", serviceType)
 	}

@@ -110,3 +110,29 @@ func TestControlPlaneRestoreArtifact(t *testing.T) {
 		t.Fatalf("expected restore success, got %#v", restore)
 	}
 }
+
+func TestControlPlaneProtectAndEnforceKubeDelete(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	cp, err := NewControlPlane(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new control plane: %v", err)
+	}
+
+	protect, err := cp.ProtectKubernetes(context.Background(), filepath.Join("..", "..", "examples", "kubernetes-beta", "manifests.yaml"))
+	if err != nil {
+		t.Fatalf("protect kubernetes: %v", err)
+	}
+	if protect.Created == 0 {
+		t.Fatalf("expected kubernetes protection artifacts, got %#v", protect)
+	}
+
+	enforced, err := cp.EnforceKubeDelete(context.Background(), filepath.Join("..", "..", "examples", "kubernetes-beta", "manifests.yaml"))
+	if err != nil {
+		t.Fatalf("enforce kube delete: %v", err)
+	}
+	if _, ok := enforced["protection"]; !ok {
+		t.Fatalf("expected protection payload, got %#v", enforced)
+	}
+}

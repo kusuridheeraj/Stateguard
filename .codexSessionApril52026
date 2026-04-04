@@ -1,0 +1,167 @@
+Stateguard session context snapshot as of 2026-04-05.
+
+Project identity:
+- Repo: Stateguard
+- Purpose: open-source state protection platform for destructive infrastructure operations
+- Primary problem: prevent accidental data loss from commands like docker compose down, docker compose down -v, docker rm, docker volume rm, docker system prune, and later Kubernetes delete/uninstall flows
+
+Locked product requirements:
+- Stable first-release Compose support on Windows/WSL2, Linux, macOS
+- Kubernetes included as beta
+- Privileged host daemon
+- CLI, dashboard API, web console, structured logs
+- Explicit safe commands and transparent interception path
+- Fail-closed safety model when verified protection is unavailable
+- Same-host artifact storage first, remote later
+- Monorepo
+- Go implementation
+- Apache-2.0 license
+
+Important docs:
+- README.md
+- docs/architecture.md
+- docs/roadmap.md
+- docs/handoff-context.md
+
+Current architecture:
+- cmd/daemon: daemon entrypoint
+- cmd/cli: CLI entrypoint
+- cmd/dashboard-api: dashboard/backend API
+- internal/service: control plane
+- internal/orchestrator: protect/restore orchestration
+- internal/compose: Compose discovery and runner
+- internal/backupexec: backup execution planning and optional live execution
+- internal/kube: Kubernetes beta inspection and delete guard
+- internal/artifacts: persisted artifact store/index
+- adapters/: service-aware adapters
+- web/: dashboard frontend
+- install/: Windows/Linux/macOS installers
+
+What is implemented:
+- Repo scaffold, license, architecture docs, roadmap, setup docs, agent prompt docs
+- Config loading through safedata.yaml
+- Policy engine, artifact store, scheduler, retention engine
+- Compose discovery and project boundary logic
+- Kubernetes beta inspection and delete guard
+- Compose guard/intercept flow through control plane
+- Compose runner for up/down
+- Daemon API and dashboard API for protect, restore, guard, intercept, kube delete guard
+- Dashboard action panel wired to daemon-backed endpoints
+- Executable installers for Windows/Linux/macOS with service registration and safe Compose wrapper generation
+
+Artifact/bundle behavior:
+- Bundles now contain:
+  - manifest.json
+  - checksum.sha256
+  - capture-plan.json
+  - restore.sh
+  - restore.ps1
+  - execution.json
+
+Adapters present:
+- Postgres
+- Redis
+- Vault
+- MySQL
+- MongoDB
+- Kafka
+- generic fallback
+
+Adapters with concrete live-path and persisted restore semantics:
+- Postgres
+- Redis
+- Vault
+- MySQL
+- MongoDB
+- Kafka
+
+Meaning for those three:
+- Protect emits richer execution metadata
+- Restore validates persisted bundle contents instead of accepting arbitrary IDs
+- First restore orchestration path is real and tested
+
+Current interception/completion state:
+- raw Docker argument interception now exists for Compose-scoped destructive intent
+- current parser supports:
+  - docker compose -f <file> down
+  - docker compose -f <file> down -v
+  - docker compose -f <file> up
+  - docker volume rm
+  - docker system prune
+- raw volume/system prune is evaluated and explicitly not auto-executed yet because higher-order scope mapping is still needed
+
+Current Kubernetes state:
+- inspect
+- protect
+- guard-delete
+- enforce-delete
+- enforce-delete currently runs protection before delete evaluation and returns both artifacts and guard result
+
+Config note:
+- runtime.compose.live_execution exists
+- default is false
+- false = write execution plans only
+- true = attempt live backup command execution for supported adapters
+
+Current CLI/API surface:
+- stateguard protect compose -f <compose-file>
+- stateguard restore artifact -id <artifact-id>
+- stateguard guard compose -f <compose-file> --command compose.down
+- stateguard intercept compose down -f <compose-file>
+- stateguard compose down -f <compose-file> --with-volumes
+- stateguard kube inspect -f <manifests>
+- stateguard kube guard-delete -f <manifests>
+
+Important endpoints:
+- /api/v1/protect/compose
+- /api/v1/restore/artifact
+- /api/v1/guard/compose
+- /api/v1/intercept/compose
+- /api/v1/guard/kube-delete
+- /api/v1/daemon/protect/compose
+- /api/v1/daemon/restore/artifact
+- /api/v1/daemon/guard/compose
+- /api/v1/daemon/intercept/compose
+- /api/v1/daemon/guard/kube-delete
+
+Verification status:
+- go test ./... passes
+- CLI smoke checks were run successfully
+- End-to-end CLI protect -> restore smoke path works for a generated Postgres artifact
+
+Most recent pushed commits:
+- 6345b11 feat: add backup execution and restore orchestration
+- 088b01e feat: harden interception and installer runtime paths
+- 96b5744 feat: add compose guard flow and integration tests
+- earlier scaffold and adapter commits already pushed on main
+
+Release hardening added:
+- .goreleaser.yaml
+- .github/workflows/release.yml
+- docs/manual-validation.md
+
+Still not production-ready:
+- Transparent interception is still Stateguard-controlled, not full Docker socket enforcement
+- Kubernetes is still beta API/CLI enforcement, not admission/controller enforcement
+- No remote artifact storage yet
+- Release packaging is scaffolded/hardened but not battle-tested on real release tags yet
+- No full disaster-recovery workflows yet
+
+Immediate next priorities:
+1. Add more end-to-end protect/intercept/restore tests against live services
+2. Push transparent interception beyond the current controlled CLI/API path
+3. Push Kubernetes toward controller/admission enforcement
+4. Validate release workflow and installers on real target environments
+5. Add remote artifact storage and stronger disaster-recovery paths
+
+Collaboration rules established in this session:
+- Keep docs updated in the same pass as code changes
+- Use apply_patch for manual file edits
+- Do not revert unrelated user changes
+- Prefer incremental commits and pushes after coherent slices
+- Be honest about guarantees; do not oversell impossible recovery semantics
+
+If continuing from this file:
+- Read this file first
+- Then read docs/handoff-context.md
+- Then inspect internal/service/controlplane.go, internal/orchestrator/protect.go, internal/backupexec/compose.go, and the adapters for postgres/redis/vault

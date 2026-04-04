@@ -3,6 +3,9 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/kusuridheeraj/stateguard/internal/adapterutil"
 	"github.com/kusuridheeraj/stateguard/pkg/sdk"
@@ -49,8 +52,28 @@ func (Adapter) Protect(_ context.Context, req sdk.ProtectRequest) (sdk.ProtectRe
 	record.Degraded = !req.Target.PersistentMount
 
 	dataMount := adapterutil.MountForTarget(req.Target, "/var/lib/mysql")
+	dumpFileName := fmt.Sprintf("%s.sql", record.ID)
 	manifest := map[string]any{
 		"serviceType": "mysql",
+		"artifact": map[string]any{
+			"id":          record.ID,
+			"bundleFiles": []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"},
+		},
+		"execution": map[string]any{
+			"capture": map[string]any{
+				"supported":      true,
+				"mode":           ternary(req.Target.PersistentMount, "logical-dump", "degraded-emergency"),
+				"captureCommand": "mysqldump --all-databases --single-transaction --quick",
+				"artifactFile":   dumpFileName,
+				"steps":          []string{"connect to mysql service", "run mysqldump", "seal checksum and manifest bundle"},
+			},
+			"restore": map[string]any{
+				"supported":          true,
+				"requiredArtifactID": "mysql-<service>-<timestamp>",
+				"expectedFiles":      []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"},
+				"restoreCommand":     fmt.Sprintf("mysql < %s", dumpFileName),
+			},
+		},
 		"strategy": map[string]any{
 			"primary":           ternary(req.Target.PersistentMount, "logical backup + binlog-aware protection", "container-layer emergency export"),
 			"restoreValidation": ternary(req.Target.PersistentMount, "restore-test eligible", "integrity only until durable mount exists"),
@@ -63,11 +86,12 @@ func (Adapter) Protect(_ context.Context, req sdk.ProtectRequest) (sdk.ProtectRe
 			"validationMode":     req.ValidationMode,
 			"restoreTestPolicy":  req.RestoreTestPolicy,
 			"degradedProtection": record.Degraded,
+			"dumpFileName":       dumpFileName,
 		},
 		"commands": map[string]any{
-			"logicalBackup":  "mysqldump --all-databases --single-transaction",
+			"logicalBackup":  "mysqldump --all-databases --single-transaction --quick",
 			"integrityCheck": "verify manifest + MySQL restore prerequisites",
-			"restoreHint":    "mysql < dump.sql or physical restore depending on mode",
+			"restoreHint":    fmt.Sprintf("mysql < %s or physical restore depending on mode", dumpFileName),
 		},
 	}
 
@@ -84,8 +108,16 @@ func (Adapter) Validate(_ context.Context, artifact sdk.ArtifactRef) (sdk.Valida
 	if manifest["serviceType"] != "mysql" {
 		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is not a mysql manifest", artifact.ID)
 	}
+	execution, _ := manifest["execution"].(map[string]any)
+	restore, _ := execution["restore"].(map[string]any)
+	if restore == nil {
+		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is missing mysql restore metadata", artifact.ID)
+	}
 	data, _ := manifest["data"].(map[string]any)
 	persistent, _ := data["persistentMount"].(bool)
+	if dumpFileName, _ := data["dumpFileName"].(string); dumpFileName == "" || !strings.HasSuffix(dumpFileName, ".sql") {
+		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is missing mysql dump metadata", artifact.ID)
+	}
 
 	return sdk.ValidationResult{
 		IntegrityOK: true,
@@ -96,7 +128,35 @@ func (Adapter) Validate(_ context.Context, artifact sdk.ArtifactRef) (sdk.Valida
 }
 
 func (Adapter) Restore(_ context.Context, req sdk.RestoreRequest) (sdk.RestoreResult, error) {
-	return sdk.RestoreResult{Recovered: req.ArtifactID != ""}, nil
+	if req.ArtifactID == "" || !strings.HasPrefix(req.ArtifactID, "mysql-") {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is not a mysql-generated bundle", req.ArtifactID)
+	}
+	if req.ArtifactPath == "" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing manifest path", req.ArtifactID)
+	}
+	payload, err := adapterutil.ReadArtifactManifest(req.ArtifactPath)
+	if err != nil {
+		return sdk.RestoreResult{}, err
+	}
+	manifest, _ := payload["manifest"].(map[string]any)
+	if serviceType, _ := manifest["serviceType"].(string); serviceType != "mysql" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q does not contain a mysql manifest", req.ArtifactID)
+	}
+	if req.BundleDir == "" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing bundle path", req.ArtifactID)
+	}
+	for _, name := range []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"} {
+		if _, err := os.Stat(filepath.Join(req.BundleDir, name)); err != nil {
+			return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing bundle file %s: %w", req.ArtifactID, name, err)
+		}
+	}
+	return sdk.RestoreResult{
+		Recovered: true,
+		Details: map[string]any{
+			"bundleDir": req.BundleDir,
+			"mode":      "bundle-verified-mysql-restore",
+		},
+	}, nil
 }
 
 func ternary[T any](condition bool, whenTrue, whenFalse T) T {

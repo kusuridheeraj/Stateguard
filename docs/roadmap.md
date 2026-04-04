@@ -39,6 +39,10 @@ Execution-track progress beyond the named phases:
 - configurable live execution plans for Compose backup commands
 - stricter restore semantics for Postgres, Redis, and Vault
 - startup-service installers plus safe Compose wrappers for Windows, Linux, and macOS
+- concrete persisted restore semantics across the full initial official adapter set
+- raw Docker argument interception for Compose-scoped destructive intent
+- Kubernetes protect-and-enforce-delete flow
+- release workflow and manual validation checklist
 
 ## V2
 

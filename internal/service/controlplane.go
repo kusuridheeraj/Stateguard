@@ -138,12 +138,39 @@ func (c *ControlPlane) ProtectCompose(ctx context.Context, path string) (orchest
 	return c.protector.ProtectCompose(ctx, path)
 }
 
+func (c *ControlPlane) ProtectKubernetes(ctx context.Context, path string) (orchestrator.ProtectReport, error) {
+	return c.protector.ProtectKubernetes(ctx, path)
+}
+
 func (c *ControlPlane) RestoreArtifact(ctx context.Context, artifactID string) (orchestrator.RestoreReport, error) {
 	return c.protector.RestoreArtifact(ctx, artifactID)
 }
 
 func (c *ControlPlane) GuardComposeOperation(ctx context.Context, path string, operation intercept.Operation) (intercept.Result, error) {
 	return c.interceptor.EvaluateComposeOperation(ctx, path, operation)
+}
+
+func (c *ControlPlane) InterceptDockerArgs(ctx context.Context, args []string, execute bool) (map[string]any, error) {
+	plan, err := intercept.ParseDockerArgs(args)
+	if err != nil {
+		return nil, err
+	}
+	switch plan.Operation {
+	case intercept.OpComposeDown, intercept.OpComposeDownWithVolumes:
+		result, err := c.InterceptComposeDown(ctx, plan.ComposePath, plan.WithVolumes, execute)
+		return map[string]any{"plan": plan, "result": result}, err
+	case intercept.Operation("compose.up"):
+		result, err := c.InterceptComposeUp(ctx, plan.ComposePath, plan.Detached, plan.Build, execute)
+		return map[string]any{"plan": plan, "result": result}, err
+	case intercept.OpDockerVolumeRemove, intercept.OpDockerSystemPrune:
+		return map[string]any{
+			"plan":    plan,
+			"allowed": false,
+			"reason":  "raw docker destructive operations require higher-order scope mapping before safe execution; use Compose-scoped interception or explicit platform policy",
+		}, nil
+	default:
+		return map[string]any{"plan": plan}, nil
+	}
 }
 
 func (c *ControlPlane) InterceptComposeDown(ctx context.Context, path string, withVolumes bool, execute bool) (ComposeInterception, error) {
@@ -190,6 +217,22 @@ func (c *ControlPlane) InterceptComposeUp(ctx context.Context, path string, deta
 
 func (c *ControlPlane) GuardKubeDelete(path string) (kube.GuardResult, error) {
 	return kube.GuardDelete(path)
+}
+
+func (c *ControlPlane) EnforceKubeDelete(ctx context.Context, path string) (map[string]any, error) {
+	protection, err := c.ProtectKubernetes(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	guard, err := c.GuardKubeDelete(path)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"protection": protection,
+		"guard":      guard,
+		"allowed":    guard.Allowed && protection.Created > 0,
+	}, nil
 }
 
 func (c *ControlPlane) RunStartupJobs(ctx context.Context) {

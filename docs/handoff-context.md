@@ -99,8 +99,11 @@ Concrete live-path work now exists for:
 - `Postgres`
 - `Redis`
 - `Vault`
+- `MySQL`
+- `MongoDB`
+- `Kafka`
 
-Those three now provide:
+These adapters now provide:
 
 - richer execution metadata during protect
 - stricter restore validation
@@ -120,8 +123,11 @@ Restore:
 - `postgres`
 - `redis`
 - `vault`
+- `mysql`
+- `mongodb`
+- `kafka`
 
-For the rest of the adapters, execution metadata is still written in plan-only mode. This is intentional so unsupported live execution does not break orchestration.
+The generic fallback still stays plan-only when no concrete live execution strategy exists.
 
 Live execution toggle:
 
@@ -145,7 +151,38 @@ Implemented:
 Important nuance:
 
 - `Postgres` and `Redis` restore now require persisted bundle files
+- `MySQL`, `MongoDB`, and `Kafka` restore now require persisted bundle files
 - `Vault` restore locates the bundle via configured artifact storage and validates bundle contents
+
+## Current Interception Model
+
+Implemented:
+
+- Compose interception through explicit CLI/API control-plane paths
+- raw Docker argument interception for:
+  - `docker compose -f <file> down`
+  - `docker compose -f <file> down -v`
+  - `docker compose -f <file> up`
+  - `docker volume rm`
+  - `docker system prune`
+
+Current limitation:
+
+- raw `docker volume rm` and `docker system prune` are intentionally not auto-executed yet because safe scope mapping is not solved for arbitrary host-level destructive commands
+
+## Current Kubernetes Enforcement Model
+
+Implemented:
+
+- inspect
+- protect
+- guard-delete
+- enforce-delete
+
+Meaning:
+
+- Stateguard can now generate protection artifacts for stateful resources found in Kubernetes manifests before evaluating delete safety
+- this is still beta CLI/API enforcement, not controller/admission enforcement inside the cluster
 
 ## Testing Status
 
@@ -172,11 +209,11 @@ This is not yet a production-ready v1. Main gaps:
 
 ## Immediate Next Priorities
 
-1. Extend `internal/backupexec` live execution support to `MySQL`, `MongoDB`, and `Kafka`.
-2. Make restore execution more concrete for those same adapters.
-3. Add richer end-to-end integration tests for protect/intercept/restore.
-4. Harden installer and release packaging into actual publishable assets.
-5. Push Kubernetes from beta guard checks toward controller/admission enforcement.
+1. Add richer end-to-end integration tests for protect/intercept/restore against live services.
+2. Harden transparent interception beyond the current controlled CLI/API path.
+3. Validate installers and release assets on real Windows/Linux/macOS targets.
+4. Push Kubernetes from beta CLI/API enforcement toward controller/admission enforcement.
+5. Add remote artifact storage and stronger disaster-recovery flows.
 
 ## Important Collaboration Notes
 

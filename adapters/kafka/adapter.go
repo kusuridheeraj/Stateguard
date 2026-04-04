@@ -3,6 +3,8 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/kusuridheeraj/stateguard/internal/adapterutil"
@@ -57,6 +59,25 @@ func (Adapter) Protect(_ context.Context, req sdk.ProtectRequest) (sdk.ProtectRe
 
 	manifest := map[string]any{
 		"serviceType": "kafka",
+		"artifact": map[string]any{
+			"id":          record.ID,
+			"bundleFiles": []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"},
+		},
+		"execution": map[string]any{
+			"capture": map[string]any{
+				"supported":      true,
+				"mode":           ternary(req.Target.PersistentMount, "log-dir-capture", "degraded-emergency"),
+				"captureCommand": "enumerate broker log dirs and metadata",
+				"artifactFile":   "backup.kafka.json",
+				"steps":          []string{"inspect broker log dirs", "capture broker metadata listing", "seal checksum and manifest bundle"},
+			},
+			"restore": map[string]any{
+				"supported":          true,
+				"requiredArtifactID": "kafka-<service>-<timestamp>",
+				"expectedFiles":      []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"},
+				"restoreCommand":     "restore broker log directories before cluster rejoin",
+			},
+		},
 		"strategy": map[string]any{
 			"primary":              ternary(req.Target.PersistentMount, "broker log-dir protection with durable storage expectations", "container-layer emergency export"),
 			"restoreValidation":    ternary(req.Target.PersistentMount, "restore-test eligible", "integrity only until durable log mount exists"),
@@ -91,6 +112,11 @@ func (Adapter) Validate(_ context.Context, artifact sdk.ArtifactRef) (sdk.Valida
 	if manifest["serviceType"] != "kafka" {
 		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is not a kafka manifest", artifact.ID)
 	}
+	execution, _ := manifest["execution"].(map[string]any)
+	restore, _ := execution["restore"].(map[string]any)
+	if restore == nil {
+		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is missing kafka restore metadata", artifact.ID)
+	}
 	data, _ := manifest["data"].(map[string]any)
 	persistent, _ := data["persistentMount"].(bool)
 
@@ -103,7 +129,29 @@ func (Adapter) Validate(_ context.Context, artifact sdk.ArtifactRef) (sdk.Valida
 }
 
 func (Adapter) Restore(_ context.Context, req sdk.RestoreRequest) (sdk.RestoreResult, error) {
-	return sdk.RestoreResult{Recovered: req.ArtifactID != ""}, nil
+	if req.ArtifactID == "" || !strings.HasPrefix(req.ArtifactID, "kafka-") {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is not a kafka-generated bundle", req.ArtifactID)
+	}
+	if req.ArtifactPath == "" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing manifest path", req.ArtifactID)
+	}
+	payload, err := adapterutil.ReadArtifactManifest(req.ArtifactPath)
+	if err != nil {
+		return sdk.RestoreResult{}, err
+	}
+	manifest, _ := payload["manifest"].(map[string]any)
+	if serviceType, _ := manifest["serviceType"].(string); serviceType != "kafka" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q does not contain a kafka manifest", req.ArtifactID)
+	}
+	if req.BundleDir == "" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing bundle path", req.ArtifactID)
+	}
+	for _, name := range []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"} {
+		if _, err := os.Stat(filepath.Join(req.BundleDir, name)); err != nil {
+			return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing bundle file %s: %w", req.ArtifactID, name, err)
+		}
+	}
+	return sdk.RestoreResult{Recovered: true, Details: map[string]any{"bundleDir": req.BundleDir, "mode": "bundle-verified-kafka-restore"}}, nil
 }
 
 func ternary[T any](condition bool, whenTrue, whenFalse T) T {

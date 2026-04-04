@@ -3,6 +3,9 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/kusuridheeraj/stateguard/internal/adapterutil"
 	"github.com/kusuridheeraj/stateguard/pkg/sdk"
@@ -49,8 +52,28 @@ func (Adapter) Protect(_ context.Context, req sdk.ProtectRequest) (sdk.ProtectRe
 	record.Degraded = !req.Target.PersistentMount
 
 	dataMount := adapterutil.MountForTarget(req.Target, "/data/db")
+	archiveName := fmt.Sprintf("%s.archive.gz", record.ID)
 	manifest := map[string]any{
 		"serviceType": "mongodb",
+		"artifact": map[string]any{
+			"id":          record.ID,
+			"bundleFiles": []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"},
+		},
+		"execution": map[string]any{
+			"capture": map[string]any{
+				"supported":      true,
+				"mode":           ternary(req.Target.PersistentMount, "archive-dump", "degraded-emergency"),
+				"captureCommand": "mongodump --archive --gzip",
+				"artifactFile":   archiveName,
+				"steps":          []string{"connect to mongodb service", "run mongodump archive", "seal checksum and manifest bundle"},
+			},
+			"restore": map[string]any{
+				"supported":          true,
+				"requiredArtifactID": "mongodb-<service>-<timestamp>",
+				"expectedFiles":      []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"},
+				"restoreCommand":     fmt.Sprintf("mongorestore --archive=%s --gzip", archiveName),
+			},
+		},
 		"strategy": map[string]any{
 			"primary":           ternary(req.Target.PersistentMount, "mongodump-aware protection with durable storage hints", "container-layer emergency export"),
 			"restoreValidation": ternary(req.Target.PersistentMount, "restore-test eligible", "integrity only until durable mount exists"),
@@ -63,11 +86,12 @@ func (Adapter) Protect(_ context.Context, req sdk.ProtectRequest) (sdk.ProtectRe
 			"validationMode":     req.ValidationMode,
 			"restoreTestPolicy":  req.RestoreTestPolicy,
 			"degradedProtection": record.Degraded,
+			"archiveFileName":    archiveName,
 		},
 		"commands": map[string]any{
-			"logicalBackup":  "mongodump --archive",
+			"logicalBackup":  "mongodump --archive --gzip",
 			"integrityCheck": "verify manifest + MongoDB restore prerequisites",
-			"restoreHint":    "mongorestore --archive",
+			"restoreHint":    fmt.Sprintf("mongorestore --archive=%s --gzip", archiveName),
 		},
 	}
 
@@ -84,8 +108,16 @@ func (Adapter) Validate(_ context.Context, artifact sdk.ArtifactRef) (sdk.Valida
 	if manifest["serviceType"] != "mongodb" {
 		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is not a mongodb manifest", artifact.ID)
 	}
+	execution, _ := manifest["execution"].(map[string]any)
+	restore, _ := execution["restore"].(map[string]any)
+	if restore == nil {
+		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is missing mongodb restore metadata", artifact.ID)
+	}
 	data, _ := manifest["data"].(map[string]any)
 	persistent, _ := data["persistentMount"].(bool)
+	if archiveName, _ := data["archiveFileName"].(string); archiveName == "" || !strings.HasSuffix(archiveName, ".archive.gz") {
+		return sdk.ValidationResult{}, fmt.Errorf("artifact %s is missing mongodb archive metadata", artifact.ID)
+	}
 
 	return sdk.ValidationResult{
 		IntegrityOK: true,
@@ -96,7 +128,29 @@ func (Adapter) Validate(_ context.Context, artifact sdk.ArtifactRef) (sdk.Valida
 }
 
 func (Adapter) Restore(_ context.Context, req sdk.RestoreRequest) (sdk.RestoreResult, error) {
-	return sdk.RestoreResult{Recovered: req.ArtifactID != ""}, nil
+	if req.ArtifactID == "" || !strings.HasPrefix(req.ArtifactID, "mongodb-") {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is not a mongodb-generated bundle", req.ArtifactID)
+	}
+	if req.ArtifactPath == "" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing manifest path", req.ArtifactID)
+	}
+	payload, err := adapterutil.ReadArtifactManifest(req.ArtifactPath)
+	if err != nil {
+		return sdk.RestoreResult{}, err
+	}
+	manifest, _ := payload["manifest"].(map[string]any)
+	if serviceType, _ := manifest["serviceType"].(string); serviceType != "mongodb" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q does not contain a mongodb manifest", req.ArtifactID)
+	}
+	if req.BundleDir == "" {
+		return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing bundle path", req.ArtifactID)
+	}
+	for _, name := range []string{"manifest.json", "checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1", "execution.json"} {
+		if _, err := os.Stat(filepath.Join(req.BundleDir, name)); err != nil {
+			return sdk.RestoreResult{}, fmt.Errorf("artifact id %q is missing bundle file %s: %w", req.ArtifactID, name, err)
+		}
+	}
+	return sdk.RestoreResult{Recovered: true, Details: map[string]any{"bundleDir": req.BundleDir, "mode": "bundle-verified-mongodb-restore"}}, nil
 }
 
 func ternary[T any](condition bool, whenTrue, whenFalse T) T {

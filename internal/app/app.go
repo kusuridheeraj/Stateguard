@@ -288,7 +288,7 @@ func runRestoreCommand(args []string, stdout io.Writer) error {
 
 func runKubeCommand(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("kube requires a subcommand: inspect or guard-delete")
+		return errors.New("kube requires a subcommand: inspect, protect, guard-delete, or enforce-delete")
 	}
 
 	switch args[0] {
@@ -308,6 +308,25 @@ func runKubeCommand(args []string, stdout io.Writer) error {
 			return err
 		}
 		return writeJSON(stdout, descriptor)
+	case "protect":
+		fs := flag.NewFlagSet("kube protect", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		path := fs.String("f", "", "path to kubernetes manifests")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *path == "" {
+			return errors.New("kube protect requires -f path")
+		}
+		cp, err := loadControlPlane()
+		if err != nil {
+			return err
+		}
+		result, err := cp.ProtectKubernetes(context.Background(), *path)
+		if err != nil {
+			return err
+		}
+		return writeJSON(stdout, result)
 	case "guard-delete":
 		fs := flag.NewFlagSet("kube guard-delete", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
@@ -320,6 +339,25 @@ func runKubeCommand(args []string, stdout io.Writer) error {
 		}
 
 		result, err := kube.GuardDelete(*path)
+		if err != nil {
+			return err
+		}
+		return writeJSON(stdout, result)
+	case "enforce-delete":
+		fs := flag.NewFlagSet("kube enforce-delete", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		path := fs.String("f", "", "path to kubernetes manifests")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *path == "" {
+			return errors.New("kube enforce-delete requires -f path")
+		}
+		cp, err := loadControlPlane()
+		if err != nil {
+			return err
+		}
+		result, err := cp.EnforceKubeDelete(context.Background(), *path)
 		if err != nil {
 			return err
 		}
@@ -358,8 +396,28 @@ func runGuardCommand(args []string, stdout io.Writer) error {
 }
 
 func runInterceptCommand(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "compose" {
-		return errors.New("intercept requires the subcommand: compose")
+	if len(args) == 0 {
+		return errors.New("intercept requires the subcommand: compose or docker")
+	}
+	if args[0] == "docker" {
+		fs := flag.NewFlagSet("intercept docker", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		execute := fs.Bool("execute", false, "execute intercepted command when supported")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		cp, err := loadControlPlane()
+		if err != nil {
+			return err
+		}
+		result, err := cp.InterceptDockerArgs(context.Background(), fs.Args(), *execute)
+		if err != nil {
+			return err
+		}
+		return writeJSON(stdout, result)
+	}
+	if args[0] != "compose" {
+		return errors.New("intercept requires the subcommand: compose or docker")
 	}
 	if len(args) < 2 {
 		return errors.New("intercept compose requires an operation such as down or up")
@@ -440,11 +498,14 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  compose down -f compose.yaml [--execute]")
 	_, _ = fmt.Fprintln(w, "  compose up -f compose.yaml [--execute]")
 	_, _ = fmt.Fprintln(w, "  kube inspect -f manifests.yaml")
+	_, _ = fmt.Fprintln(w, "  kube protect -f manifests.yaml")
 	_, _ = fmt.Fprintln(w, "  kube guard-delete -f manifests.yaml")
+	_, _ = fmt.Fprintln(w, "  kube enforce-delete -f manifests.yaml")
 	_, _ = fmt.Fprintln(w, "  protect compose -f compose.yaml")
 	_, _ = fmt.Fprintln(w, "  restore artifact -id artifact-id")
 	_, _ = fmt.Fprintln(w, "  guard compose -f compose.yaml --command compose.down")
 	_, _ = fmt.Fprintln(w, "  intercept compose down -f compose.yaml [--execute]")
+	_, _ = fmt.Fprintln(w, "  intercept docker [--execute] compose -f compose.yaml down -v")
 }
 
 func writeJSON(w io.Writer, value any) error {

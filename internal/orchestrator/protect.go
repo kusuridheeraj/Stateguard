@@ -8,6 +8,7 @@ import (
 	"github.com/kusuridheeraj/stateguard/internal/artifacts"
 	"github.com/kusuridheeraj/stateguard/internal/backupexec"
 	"github.com/kusuridheeraj/stateguard/internal/compose"
+	"github.com/kusuridheeraj/stateguard/internal/kube"
 	"github.com/kusuridheeraj/stateguard/pkg/sdk"
 	"github.com/kusuridheeraj/stateguard/pkg/types"
 )
@@ -165,4 +166,86 @@ func (p *Protector) RestoreArtifact(ctx context.Context, artifactID string) (Res
 		Details:    result.Details,
 		Record:     record,
 	}, nil
+}
+
+func (p *Protector) ProtectKubernetes(ctx context.Context, path string) (ProtectReport, error) {
+	descriptor, err := kube.Discover(path)
+	if err != nil {
+		return ProtectReport{}, err
+	}
+
+	scope := descriptor.Namespace
+	if scope == "" {
+		scope = "default"
+	}
+
+	report := ProtectReport{
+		Project:   scope,
+		Runtime:   descriptor.Runtime,
+		Artifacts: []types.ArtifactRecord{},
+		Skipped:   []string{},
+		ScopeHint: types.ProtectedScope{
+			Name:             scope,
+			Runtime:          descriptor.Runtime,
+			StatefulServices: descriptor.StatefulResources,
+			DetectedAt:       descriptor.Detected,
+		},
+	}
+
+	for _, resource := range descriptor.Resources {
+		if !resource.StatefulCandidate {
+			continue
+		}
+		image := ""
+		if len(resource.Images) > 0 {
+			image = resource.Images[0]
+		}
+		target := sdk.Target{
+			Name:            resource.Name,
+			Scope:           scope,
+			Runtime:         descriptor.Runtime,
+			Identifier:      fmt.Sprintf("%s/%s", scope, resource.Name),
+			Image:           image,
+			PersistentMount: resource.Kind == "StatefulSet" || resource.Kind == "PersistentVolumeClaim",
+			StatefulHint:    true,
+		}
+
+		adapter, _, ok := p.registry.Resolve(ctx, target)
+		if !ok {
+			report.Skipped = append(report.Skipped, resource.Name)
+			continue
+		}
+
+		result, err := adapter.Protect(ctx, sdk.ProtectRequest{
+			Target:            target,
+			ArtifactRoot:      p.store.Root(),
+			ValidationMode:    "hybrid",
+			RestoreTestPolicy: "periodic",
+		})
+		if err != nil {
+			return ProtectReport{}, err
+		}
+
+		record, err := p.persistArtifact(adapter.Name(), result)
+		if err != nil {
+			return ProtectReport{}, err
+		}
+
+		validation, err := adapter.Validate(ctx, sdk.ArtifactRef{ID: record.ID, Path: record.Path})
+		if err != nil {
+			return ProtectReport{}, err
+		}
+		record.IntegrityValidated = validation.IntegrityOK
+		record.RestoreTested = validation.RestoreTest
+		record.Degraded = record.Degraded || validation.Degraded
+
+		if err := p.store.Add(record); err != nil {
+			return ProtectReport{}, err
+		}
+
+		report.Created++
+		report.Artifacts = append(report.Artifacts, record)
+	}
+
+	return report, nil
 }
