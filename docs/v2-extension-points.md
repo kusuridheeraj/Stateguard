@@ -45,8 +45,8 @@ Planned extension points:
 
 Current state:
 
-- Postgres, Redis, and Vault have service-aware manifest and validation logic
-- MySQL, MongoDB, Kafka, and generic fallback still need equivalent specialization
+- Postgres, Redis, Vault, MySQL, MongoDB, and Kafka have service-aware manifest and validation logic
+- generic fallback still intentionally remains less specialized
 
 Planned extension points:
 

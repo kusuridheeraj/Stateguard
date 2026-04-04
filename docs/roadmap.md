@@ -31,6 +31,7 @@ Shipped capabilities:
 Execution-track progress beyond the named phases:
 
 - service-aware manifest and validation behavior for Postgres, Redis, and Vault
+- service-aware manifest and validation behavior for MySQL, MongoDB, and Kafka
 - stronger orchestration tests for multi-service Compose protection
 
 ## V2

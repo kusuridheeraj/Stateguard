@@ -69,7 +69,7 @@ Service-aware adapters provide strong semantics for supported systems:
 
 The adapter registry is now a first-class runtime component. It resolves services by runtime hints such as image names, mount characteristics, and stateful heuristics. When no official adapter matches, the generic fallback adapter may still protect the workload with degraded guarantees.
 
-Postgres, Redis, and Vault now have concrete service-aware manifest and validation behavior beyond the generic scaffold path. The remaining official adapters still use the scaffold contract and will need equivalent specialization.
+Postgres, Redis, Vault, MySQL, MongoDB, and Kafka now have concrete service-aware manifest and validation behavior beyond the generic scaffold path. The generic fallback remains intentionally less strict and more degraded.
 
 ### Orchestration Layer
 
@@ -92,7 +92,7 @@ The orchestration layer turns adapter-level protection results into persisted ar
 
 In the current implementation phase, the orchestration path is able to simulate protection against Compose workloads and emit persisted artifact records for supported adapters and generic fallback.
 
-The current execution track now includes concrete manifest generation and validation logic for Postgres, Redis, and Vault, with orchestrator tests that verify multi-service Compose flows.
+The current execution track now includes concrete manifest generation and validation logic for the full initial official adapter set, with orchestrator tests that verify multi-service Compose flows.
 
 ## Hybrid Validation
 

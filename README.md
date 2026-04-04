@@ -90,6 +90,7 @@ Unknown or weakly configured workloads may still receive generic or emergency pr
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Execution Prompt Pack](docs/agents/execution-prompt-pack.md)
+- [Content Prompt Pack](docs/agents/content-prompt-pack.md)
 - [Windows + WSL2 Setup](docs/setup/windows-wsl2.md)
 - [Linux Setup](docs/setup/linux.md)
 - [macOS Setup](docs/setup/macos.md)
@@ -149,6 +150,11 @@ Current execution-track improvements:
 - concrete service-aware manifest generation for Postgres, Redis, and Vault
 - adapter-specific validation behavior for those services
 - stronger orchestration tests covering multi-service Compose protection flows
+
+Current adapter-wave improvements:
+
+- concrete service-aware manifest and validation behavior for MySQL, MongoDB, and Kafka
+- orchestration coverage for the full initial official adapter set
 
 Dashboard and API surfaces:
 
