@@ -144,6 +144,12 @@ Current Phase 5 capabilities:
 - first-release launch and contributor content drafts
 - v2 extension-point documentation
 
+Current execution-track improvements:
+
+- concrete service-aware manifest generation for Postgres, Redis, and Vault
+- adapter-specific validation behavior for those services
+- stronger orchestration tests covering multi-service Compose protection flows
+
 Dashboard and API surfaces:
 
 - `/`

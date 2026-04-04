@@ -45,7 +45,8 @@ Planned extension points:
 
 Current state:
 
-- official adapter scaffolds plus generic fallback
+- Postgres, Redis, and Vault have service-aware manifest and validation logic
+- MySQL, MongoDB, Kafka, and generic fallback still need equivalent specialization
 
 Planned extension points:
 

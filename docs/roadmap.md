@@ -28,6 +28,11 @@ Shipped capabilities:
 - v2 extension-point documentation
 - examples and onboarding docs
 
+Execution-track progress beyond the named phases:
+
+- service-aware manifest and validation behavior for Postgres, Redis, and Vault
+- stronger orchestration tests for multi-service Compose protection
+
 ## V2
 
 Primary outcome:
