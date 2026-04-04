@@ -54,6 +54,8 @@ The dashboard should show:
 - active warnings
 - retention pressure and disk usage
 
+The current Phase 4 implementation serves a lightweight web console directly from the dashboard API process so operators can inspect state without a separate frontend build system.
+
 ### Adapter Layer
 
 Service-aware adapters provide strong semantics for supported systems:
@@ -128,3 +130,14 @@ Default enforcement mode is fail-closed:
 - if no valid recoverable artifact exists, block
 
 Container-local storage is never treated as equivalent to durable volumes, even when emergency export is possible.
+
+## Dashboard API Surface
+
+The dashboard API currently exposes operator-facing endpoints for:
+
+- status
+- overview
+- adapters
+- artifacts
+- scheduler state
+- retention preview

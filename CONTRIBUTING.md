@@ -35,6 +35,12 @@ Stateguard is intended to be a serious open-source infrastructure project. Contr
 - Avoid introducing platform-specific behavior without tests or docs.
 - Keep repo-level docs in sync with shipped code paths in the same change set.
 
+## Documentation Standards
+
+- State what is guaranteed, what is best-effort, and what is unsupported.
+- Include restore expectations, retention implications, and operational constraints.
+- Keep README, docs, install, and packaging guidance aligned with the current shipped phase.
+
 ## Security
 
 If you believe you found a security issue, follow [SECURITY.md](SECURITY.md).

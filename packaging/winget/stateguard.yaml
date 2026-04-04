@@ -1,0 +1,5 @@
+PackageIdentifier: kusuridheeraj.Stateguard
+PackageVersion: 0.1.0-dev
+PackageName: Stateguard
+Publisher: Kusuri Dheeraj
+ShortDescription: State protection platform for destructive Docker Compose and Kubernetes operations.

@@ -20,6 +20,8 @@ Shipped capabilities:
 - strong adapters for Postgres, Redis, Vault, MySQL, MongoDB, Kafka
 - generic fallback adapter for unknown stateful services
 - adapter registry and orchestration-backed artifact manifests
+- dashboard web console scaffold served by the dashboard API
+- installer and packaging skeletons
 - installer and native package distribution where practical
 - examples and onboarding docs
 

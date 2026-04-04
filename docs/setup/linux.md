@@ -12,6 +12,11 @@
 3. Configure artifact storage, retention, and optional overrides in `safedata.yaml`.
 4. Validate protected Compose project boundaries.
 
+## Current Phase 4 Scaffolds
+
+- installer scaffold: `install/linux/install.sh`
+- Linux package metadata placeholder: `packaging/nfpm.yaml`
+
 ## Notes
 
 - Linux Compose support is a stable target in the first public release.

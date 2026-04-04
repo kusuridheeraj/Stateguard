@@ -1,0 +1,9 @@
+name: stateguard
+arch: amd64
+platform: linux
+version: 0.1.0-dev
+section: default
+priority: optional
+maintainer: Kusuri Dheeraj <kusuri.dheeraj2014@gmail.com>
+description: >
+  State protection platform for destructive Docker Compose and Kubernetes operations.

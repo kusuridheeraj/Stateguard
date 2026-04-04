@@ -14,6 +14,11 @@
 4. Run Compose workloads through Stateguard-safe flows or configured transparent interception.
 5. Confirm protected workloads and recovery points in the dashboard.
 
+## Current Phase 4 Scaffolds
+
+- installer scaffold: `install/windows/install.ps1`
+- dashboard API and web console served locally by the dashboard process
+
 ## Notes
 
 - This is the first-class stable environment for early validation.

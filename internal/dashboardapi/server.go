@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/kusuridheeraj/stateguard/internal/config"
@@ -43,6 +46,8 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	mux.HandleFunc("/api/v1/artifacts", s.handleArtifacts)
 	mux.HandleFunc("/api/v1/adapters", s.handleAdapters)
 	mux.HandleFunc("/api/v1/scheduler", s.handleScheduler)
+	mux.HandleFunc("/api/v1/retention/preview", s.handleRetentionPreview)
+	mux.Handle("/", s.staticHandler())
 
 	s.http = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.API.Host, cfg.API.Port),
@@ -108,6 +113,37 @@ func (s *Server) handleAdapters(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleScheduler(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"jobs": s.control.SchedulerJobs()})
+}
+
+func (s *Server) handleRetentionPreview(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, s.control.RetentionPreview())
+}
+
+func (s *Server) staticHandler() http.Handler {
+	webDir := filepath.Join("web")
+	filesystem := os.DirFS(webDir)
+	fileServer := http.FileServer(http.FS(filesystem))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/" || r.URL.Path == "/index.html":
+			http.ServeFile(w, r, filepath.Join(webDir, "index.html"))
+			return
+		case r.URL.Path == "/static/app.js":
+			http.ServeFile(w, r, filepath.Join(webDir, "app.js"))
+			return
+		case r.URL.Path == "/static/styles.css":
+			http.ServeFile(w, r, filepath.Join(webDir, "styles.css"))
+			return
+		case filepath.Ext(r.URL.Path) != "":
+			if _, err := fs.Stat(filesystem, r.URL.Path[1:]); err == nil {
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		http.ServeFile(w, r, filepath.Join(webDir, "index.html"))
+	})
 }
 
 func writeJSON(w http.ResponseWriter, code int, value any) {

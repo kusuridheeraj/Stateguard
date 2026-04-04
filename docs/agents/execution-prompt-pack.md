@@ -230,6 +230,7 @@ Deliver:
 - installer and native packaging
 - CI workflows
 - health, logging, metrics
+- API-served web console and operator endpoints
 
 ### Phase 5
 

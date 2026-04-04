@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stateguard Console</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Stateguard Console</p>
+          <h1>State protection status for destructive operations</h1>
+          <p class="lede">
+            Live view of adapters, artifacts, scheduler jobs, and recovery posture.
+          </p>
+        </div>
+        <button id="refreshButton" class="refresh">Refresh</button>
+      </header>
+
+      <main class="grid">
+        <section class="panel accent">
+          <p class="label">Mode</p>
+          <h2 id="modeValue">loading</h2>
+          <p id="configValue" class="muted"></p>
+        </section>
+
+        <section class="panel">
+          <p class="label">Recovery Points</p>
+          <h2 id="artifactCount">0</h2>
+          <p id="artifactSummary" class="muted"></p>
+        </section>
+
+        <section class="panel">
+          <p class="label">Protected Scopes</p>
+          <h2 id="scopeCount">0</h2>
+          <p class="muted">Derived from persisted artifact history</p>
+        </section>
+
+        <section class="panel">
+          <p class="label">Warnings</p>
+          <h2 id="warningCount">0</h2>
+          <p class="muted">Degraded artifacts or fallback paths</p>
+        </section>
+
+        <section class="panel wide">
+          <div class="panel-header">
+            <h3>Registered Adapters</h3>
+            <span id="adapterCount" class="badge">0</span>
+          </div>
+          <div id="adapters" class="list"></div>
+        </section>
+
+        <section class="panel wide">
+          <div class="panel-header">
+            <h3>Recent Artifacts</h3>
+            <span class="badge">latest</span>
+          </div>
+          <div id="artifacts" class="list"></div>
+        </section>
+
+        <section class="panel wide">
+          <div class="panel-header">
+            <h3>Scheduler</h3>
+            <span class="badge">control plane</span>
+          </div>
+          <div id="jobs" class="list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

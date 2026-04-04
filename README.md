@@ -33,6 +33,7 @@ Included interfaces:
 - privileged host daemon
 - CLI
 - web dashboard
+- dashboard API
 - structured logs
 - explicit safe commands
 - transparent interception
@@ -93,6 +94,8 @@ Unknown or weakly configured workloads may still receive generic or emergency pr
 - [Linux Setup](docs/setup/linux.md)
 - [macOS Setup](docs/setup/macos.md)
 - [Kubernetes Beta Setup](docs/setup/kubernetes-beta.md)
+- [Installation](install/README.md)
+- [Packaging](packaging/README.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Phase 1 Commands
@@ -125,6 +128,24 @@ Current Phase 3 capabilities:
 - generic fallback adapter for unknown stateful services
 - manifest-backed artifact generation through the orchestration layer
 - Compose project inspection and protection simulation against example workloads
+
+Current Phase 4 capabilities:
+
+- dashboard web console served by the dashboard API
+- operator API endpoints for status, overview, adapters, artifacts, scheduler state, and retention preview
+- installer scaffolds for Windows, Linux, and macOS
+- packaging placeholders for winget, Homebrew, and Linux package flows
+
+Dashboard and API surfaces:
+
+- `/`
+- `/healthz`
+- `/api/v1/status`
+- `/api/v1/overview`
+- `/api/v1/adapters`
+- `/api/v1/artifacts`
+- `/api/v1/scheduler`
+- `/api/v1/retention/preview`
 
 ## License
 
