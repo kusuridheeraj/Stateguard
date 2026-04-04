@@ -23,6 +23,9 @@ Shipped capabilities:
 - dashboard web console scaffold served by the dashboard API
 - installer and packaging skeletons
 - installer and native package distribution where practical
+- Kubernetes beta manifest inspection and examples
+- launch and contributor content drafts
+- v2 extension-point documentation
 - examples and onboarding docs
 
 ## V2

@@ -96,6 +96,7 @@ Unknown or weakly configured workloads may still receive generic or emergency pr
 - [Kubernetes Beta Setup](docs/setup/kubernetes-beta.md)
 - [Installation](install/README.md)
 - [Packaging](packaging/README.md)
+- [V2 Extension Points](docs/v2-extension-points.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Phase 1 Commands
@@ -113,6 +114,7 @@ stateguard adapters
 stateguard scheduler
 stateguard retention
 stateguard compose inspect -f examples/windows-wsl2-compose/compose.yaml
+stateguard kube inspect -f examples/kubernetes-beta/manifests.yaml
 stateguard protect compose -f examples/windows-wsl2-compose/compose.yaml
 ```
 
@@ -135,6 +137,12 @@ Current Phase 4 capabilities:
 - operator API endpoints for status, overview, adapters, artifacts, scheduler state, and retention preview
 - installer scaffolds for Windows, Linux, and macOS
 - packaging placeholders for winget, Homebrew, and Linux package flows
+
+Current Phase 5 capabilities:
+
+- Kubernetes beta manifest inspection
+- first-release launch and contributor content drafts
+- v2 extension-point documentation
 
 Dashboard and API surfaces:
 

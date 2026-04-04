@@ -237,6 +237,7 @@ Deliver:
 - Kubernetes beta integration
 - launch assets
 - v2 extension-point docs
+- beta manifest inspection path and examples
 
 ## V2 Development Track
 

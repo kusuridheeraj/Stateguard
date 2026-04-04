@@ -16,6 +16,7 @@ import (
 	"github.com/kusuridheeraj/stateguard/internal/config"
 	"github.com/kusuridheeraj/stateguard/internal/daemon"
 	"github.com/kusuridheeraj/stateguard/internal/dashboardapi"
+	"github.com/kusuridheeraj/stateguard/internal/kube"
 	"github.com/kusuridheeraj/stateguard/internal/policy"
 	"github.com/kusuridheeraj/stateguard/internal/service"
 	"github.com/kusuridheeraj/stateguard/pkg/logging"
@@ -75,6 +76,8 @@ func RunCLI(args []string, stdout, stderr io.Writer) error {
 		return runRetentionCommand(stdout)
 	case "compose":
 		return runComposeCommand(args[1:], stdout)
+	case "kube":
+		return runKubeCommand(args[1:], stdout)
 	case "protect":
 		return runProtectCommand(args[1:], stdout)
 	default:
@@ -241,6 +244,28 @@ func runProtectCommand(args []string, stdout io.Writer) error {
 	return writeJSON(stdout, report)
 }
 
+func runKubeCommand(args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] != "inspect" {
+		return errors.New("kube requires the subcommand: inspect")
+	}
+
+	fs := flag.NewFlagSet("kube inspect", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	path := fs.String("f", "", "path to kubernetes manifests")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if *path == "" {
+		return errors.New("kube inspect requires -f path")
+	}
+
+	descriptor, err := kube.Discover(*path)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, descriptor)
+}
+
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "stateguard commands:")
 	_, _ = fmt.Fprintln(w, "  version")
@@ -253,6 +278,7 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  scheduler")
 	_, _ = fmt.Fprintln(w, "  retention")
 	_, _ = fmt.Fprintln(w, "  compose inspect -f compose.yaml")
+	_, _ = fmt.Fprintln(w, "  kube inspect -f manifests.yaml")
 	_, _ = fmt.Fprintln(w, "  protect compose -f compose.yaml")
 }
 
