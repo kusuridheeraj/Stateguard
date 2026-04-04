@@ -94,6 +94,24 @@ Unknown or weakly configured workloads may still receive generic or emergency pr
 - [Kubernetes Beta Setup](docs/setup/kubernetes-beta.md)
 - [Contributing](CONTRIBUTING.md)
 
+## Phase 1 Commands
+
+Current scaffolded commands:
+
+```bash
+stateguard version
+stateguard config validate -f safedata.yaml
+stateguard config print-defaults
+stateguard status
+stateguard policy check
+```
+
+Current service entrypoints:
+
+- `cmd/daemon` starts the daemon HTTP scaffold
+- `cmd/dashboard-api` starts the dashboard API scaffold
+- `cmd/cli` provides the first command surface
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
