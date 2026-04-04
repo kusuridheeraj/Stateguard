@@ -1,0 +1,41 @@
+version: 1
+
+project:
+  name: example-app
+  environment: dev
+
+policy:
+  mode: fail-closed
+  validation:
+    strategy: hybrid
+    integrity_check: true
+    restore_test:
+      enabled: true
+      cadence: periodic
+  retention:
+    window: 72h
+    max_disk_usage_percent: 20
+
+services:
+  postgres:
+    detect:
+      image_patterns:
+        - postgres
+    adapter: postgres
+    critical: true
+  redis:
+    detect:
+      image_patterns:
+        - redis
+    adapter: redis
+    critical: true
+
+storage:
+  local:
+    path: C:\\ProgramData\\Stateguard\\artifacts
+
+runtime:
+  compose:
+    project_boundary: labels+compose_project
+  kubernetes:
+    mode: beta

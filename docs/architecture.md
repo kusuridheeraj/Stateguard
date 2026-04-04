@@ -1,0 +1,117 @@
+# Stateguard Architecture
+
+## Summary
+
+Stateguard is a host-level control plane for state protection around destructive infrastructure operations. Its job is not just to create backups, but to decide whether a risky operation may proceed, based on whether a recent recovery point exists and meets policy.
+
+## Design Goals
+
+- protect state before destructive actions
+- keep command-time latency low by preparing recovery points continuously
+- support stable Compose flows on Windows/WSL2, Linux, and macOS
+- include Kubernetes as beta in the first public release
+- make guarantees explicit and testable
+- keep same-host accidental-deletion recovery as the first shipping recovery tier
+
+## Core Components
+
+### Host Daemon
+
+Responsibilities:
+
+- policy enforcement
+- background scheduling
+- artifact metadata management
+- retention and disk quota management
+- runtime discovery
+- logging and metrics
+- local API for CLI and dashboard
+
+### CLI
+
+Provides:
+
+- safe equivalents for destructive actions
+- status and diagnostics
+- restore controls
+- setup and bootstrap commands
+
+### Transparent Interception
+
+Transparent interception is required for the product vision, but implementation differs by runtime:
+
+- Compose and Docker flows use a controlled interception path that routes destructive intent through the daemon.
+- Kubernetes beta uses admission/controller-style integration and release-aware policy checks.
+
+### Dashboard
+
+The dashboard should show:
+
+- protected application boundaries
+- recent recovery points
+- validation state
+- blocked operations
+- active warnings
+- retention pressure and disk usage
+
+### Adapter Layer
+
+Service-aware adapters provide strong semantics for supported systems:
+
+- Postgres
+- Redis
+- Vault
+- MySQL
+- MongoDB
+- Kafka
+
+## Protection Lifecycle
+
+1. Discover workloads and infer application boundaries.
+2. Detect stateful services using image patterns, labels, runtime signals, and `safedata.yaml`.
+3. Prepare recovery points in the background.
+4. Validate artifacts using the hybrid model.
+5. Intercept or receive a destructive action request.
+6. Decide whether a sufficiently recent verified recovery point exists.
+7. Allow or block the operation.
+
+## Hybrid Validation
+
+### Fast Validation
+
+- artifact creation success
+- checksum or integrity validation
+- metadata and manifest sanity
+- adapter-level light checks
+
+### Strong Validation
+
+- isolated restore into a temporary environment
+- service boot
+- adapter-level health verification
+
+Strong validation is periodic or policy-triggered, not necessarily run for every single destructive command.
+
+## Storage Model
+
+v1 stores artifacts on the same machine in a daemon-managed host directory.
+
+This protects against accidental operator actions such as:
+
+- `docker compose down`
+- `docker compose down -v`
+- `docker rm`
+- `docker volume rm`
+- `docker system prune`
+
+It does not replace remote disaster recovery for total host loss. Remote targets are a v2 capability.
+
+## Safety Model
+
+Default enforcement mode is fail-closed:
+
+- if verified protection exists, continue
+- if only degraded protection exists, follow explicit policy
+- if no valid recoverable artifact exists, block
+
+Container-local storage is never treated as equivalent to durable volumes, even when emergency export is possible.
