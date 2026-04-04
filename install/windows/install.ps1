@@ -61,6 +61,7 @@ storage:
 runtime:
   compose:
     project_boundary: labels+compose_project
+    live_execution: false
   kubernetes:
     mode: beta
 daemon:

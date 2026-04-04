@@ -204,3 +204,48 @@ func TestDaemonInterceptComposeEndpoint(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestDaemonRestoreArtifactEndpoint(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("unable to resolve current file path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", ".."))
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("chdir repo root: %v", err)
+	}
+	defer func() { _ = os.Chdir(previous) }()
+
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	server, err := NewServer(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+
+	reqProtect := httptest.NewRequest(http.MethodGet, "/api/v1/daemon/protect/compose?path=examples/windows-wsl2-compose/compose.yaml", nil)
+	recProtect := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recProtect, reqProtect)
+	if recProtect.Code != http.StatusOK {
+		t.Fatalf("expected protect 200, got %d body=%s", recProtect.Code, recProtect.Body.String())
+	}
+
+	artifacts := server.control.Artifacts()
+	if len(artifacts) == 0 {
+		t.Fatal("expected artifact after daemon protect")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/daemon/restore/artifact?id="+artifacts[0].ID, nil)
+	rec := httptest.NewRecorder()
+	server.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}

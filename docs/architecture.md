@@ -49,6 +49,7 @@ The current runtime path now includes:
 - control-plane execution methods that run `docker compose down` and `docker compose up` after policy checks
 - daemon and dashboard API endpoints that expose the same protect, guard, and intercept behavior
 - installer-created wrapper commands that route Compose intent through Stateguard
+- optional live backup execution for Compose workloads when `runtime.compose.live_execution` is enabled
 
 ### Dashboard
 
@@ -94,6 +95,9 @@ Each persisted recovery bundle now contains:
 - `capture-plan.json`
 - `restore.sh`
 - `restore.ps1`
+- `execution.json`
+
+For `Postgres`, `Redis`, and `Vault`, the orchestration layer now also emits concrete execution metadata that can be used for live backup command execution or restore validation.
 
 ## Protection Lifecycle
 
@@ -108,6 +112,8 @@ Each persisted recovery bundle now contains:
 In the current implementation phase, the orchestration path is able to simulate protection against Compose workloads and emit persisted artifact bundles and records for supported adapters and generic fallback.
 
 The current execution track now includes concrete manifest generation and validation logic for the full initial official adapter set, with orchestrator tests that verify multi-service Compose flows.
+
+The first restore orchestration path is now wired through artifact lookup, adapter selection, and adapter-specific restore validation using the persisted bundle metadata.
 
 ## Hybrid Validation
 
@@ -161,7 +167,8 @@ The dashboard API currently exposes operator-facing endpoints for:
 - scheduler state
 - retention preview
 - daemon status
+- artifact restore
 - Compose protect, guard, and intercept actions
 - Kubernetes beta delete guard
 
-The daemon API now exposes protect, guard, and intercept endpoints for risky Compose operations and a beta guard path for Kubernetes delete flows.
+The daemon API now exposes protect, restore, guard, and intercept endpoints for risky Compose operations and a beta guard path for Kubernetes delete flows.

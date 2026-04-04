@@ -67,11 +67,14 @@ type ValidationResult struct {
 }
 
 type RestoreRequest struct {
-	ArtifactID string
+	ArtifactID   string
+	ArtifactPath string
+	BundleDir    string
 }
 
 type RestoreResult struct {
 	Recovered bool
+	Details   map[string]any
 }
 
 func MatchesImage(target Target, hints []string) bool {

@@ -20,6 +20,7 @@
 - startup tasks for the daemon and dashboard API
 - local dashboard API and web console served by the dashboard process
 - safe Compose wrapper generation through the installer
+- optional live Compose backup execution controlled by `runtime.compose.live_execution`
 
 ## Notes
 

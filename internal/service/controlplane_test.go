@@ -84,3 +84,29 @@ func TestControlPlaneGuardKubeDeleteBlocksStatefulManifest(t *testing.T) {
 		t.Fatalf("expected stateful delete guard to block, got %#v", result)
 	}
 }
+
+func TestControlPlaneRestoreArtifact(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	cp, err := NewControlPlane(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new control plane: %v", err)
+	}
+
+	report, err := cp.ProtectCompose(context.Background(), filepath.Join("..", "..", "examples", "windows-wsl2-compose", "compose.yaml"))
+	if err != nil {
+		t.Fatalf("protect compose: %v", err)
+	}
+	if len(report.Artifacts) == 0 {
+		t.Fatal("expected at least one artifact")
+	}
+
+	restore, err := cp.RestoreArtifact(context.Background(), report.Artifacts[0].ID)
+	if err != nil {
+		t.Fatalf("restore artifact: %v", err)
+	}
+	if !restore.Recovered {
+		t.Fatalf("expected restore success, got %#v", restore)
+	}
+}

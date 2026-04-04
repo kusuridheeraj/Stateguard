@@ -76,6 +76,7 @@ func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildIn
 		),
 	}
 	cp.protector = orchestrator.NewProtector(cp.artifacts, cp.registry)
+	cp.protector.SetComposeLiveExecution(cfg.Runtime.Compose.LiveExecution)
 	cp.interceptor = intercept.Evaluator{
 		Mode:           cfg.Policy.Mode,
 		ProtectCompose: cp.protector.ProtectCompose,
@@ -135,6 +136,10 @@ func (c *ControlPlane) Adapters() []sdk.MetadataView {
 
 func (c *ControlPlane) ProtectCompose(ctx context.Context, path string) (orchestrator.ProtectReport, error) {
 	return c.protector.ProtectCompose(ctx, path)
+}
+
+func (c *ControlPlane) RestoreArtifact(ctx context.Context, artifactID string) (orchestrator.RestoreReport, error) {
+	return c.protector.RestoreArtifact(ctx, artifactID)
 }
 
 func (c *ControlPlane) GuardComposeOperation(ctx context.Context, path string, operation intercept.Operation) (intercept.Result, error) {

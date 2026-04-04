@@ -81,6 +81,8 @@ func RunCLI(args []string, stdout, stderr io.Writer) error {
 		return runKubeCommand(args[1:], stdout)
 	case "protect":
 		return runProtectCommand(args[1:], stdout)
+	case "restore":
+		return runRestoreCommand(args[1:], stdout)
 	case "guard":
 		return runGuardCommand(args[1:], stdout)
 	case "intercept":
@@ -258,6 +260,32 @@ func runProtectCommand(args []string, stdout io.Writer) error {
 	return writeJSON(stdout, report)
 }
 
+func runRestoreCommand(args []string, stdout io.Writer) error {
+	if len(args) < 2 || args[0] != "artifact" {
+		return errors.New("restore requires the subcommand: artifact")
+	}
+
+	fs := flag.NewFlagSet("restore artifact", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	artifactID := fs.String("id", "", "artifact id to restore")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if *artifactID == "" {
+		return errors.New("restore artifact requires -id")
+	}
+
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+	report, err := cp.RestoreArtifact(context.Background(), *artifactID)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, report)
+}
+
 func runKubeCommand(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("kube requires a subcommand: inspect or guard-delete")
@@ -414,6 +442,7 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  kube inspect -f manifests.yaml")
 	_, _ = fmt.Fprintln(w, "  kube guard-delete -f manifests.yaml")
 	_, _ = fmt.Fprintln(w, "  protect compose -f compose.yaml")
+	_, _ = fmt.Fprintln(w, "  restore artifact -id artifact-id")
 	_, _ = fmt.Fprintln(w, "  guard compose -f compose.yaml --command compose.down")
 	_, _ = fmt.Fprintln(w, "  intercept compose down -f compose.yaml [--execute]")
 }

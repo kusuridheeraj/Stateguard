@@ -89,6 +89,7 @@ Unknown or weakly configured workloads may still receive generic or emergency pr
 
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
+- [Handoff Context](docs/handoff-context.md)
 - [Execution Prompt Pack](docs/agents/execution-prompt-pack.md)
 - [Content Prompt Pack](docs/agents/content-prompt-pack.md)
 - [Windows + WSL2 Setup](docs/setup/windows-wsl2.md)
@@ -117,6 +118,7 @@ stateguard retention
 stateguard compose inspect -f examples/windows-wsl2-compose/compose.yaml
 stateguard kube inspect -f examples/kubernetes-beta/manifests.yaml
 stateguard protect compose -f examples/windows-wsl2-compose/compose.yaml
+stateguard restore artifact -id <artifact-id>
 stateguard guard compose -f examples/windows-wsl2-compose/compose.yaml --command compose.down
 stateguard intercept compose down -f examples/windows-wsl2-compose/compose.yaml
 stateguard compose down -f examples/windows-wsl2-compose/compose.yaml --with-volumes
@@ -175,6 +177,13 @@ Current runtime-hardening improvements:
 - recovery bundles written as directories with `manifest.json`, `checksum.sha256`, `capture-plan.json`, `restore.sh`, and `restore.ps1`
 - install scripts now register startup tasks/services and create a safe Compose wrapper command
 
+Current live-execution and restore-track improvements:
+
+- Compose protection can now write execution metadata for all supported services and concrete backup command plans for `Postgres`, `Redis`, and `Vault`
+- optional live Compose backup execution is configurable via `runtime.compose.live_execution`
+- first artifact restore orchestration path is available through the CLI, daemon API, and dashboard API
+- `Postgres`, `Redis`, and `Vault` now enforce stricter restore validation semantics instead of accepting arbitrary artifact ids
+
 Dashboard and API surfaces:
 
 - `/`
@@ -187,10 +196,12 @@ Dashboard and API surfaces:
 - `/api/v1/retention/preview`
 - `/api/v1/guard/compose`
 - `/api/v1/protect/compose`
+- `/api/v1/restore/artifact`
 - `/api/v1/intercept/compose`
 - `/api/v1/guard/kube-delete`
 - `/api/v1/daemon/status`
 - `/api/v1/daemon/protect/compose`
+- `/api/v1/daemon/restore/artifact`
 - `/api/v1/daemon/guard/compose`
 - `/api/v1/daemon/intercept/compose`
 - `/api/v1/daemon/guard/kube-delete`

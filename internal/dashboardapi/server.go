@@ -50,6 +50,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	mux.HandleFunc("/api/v1/retention/preview", s.handleRetentionPreview)
 	mux.HandleFunc("/api/v1/daemon/status", s.handleDaemonStatus)
 	mux.HandleFunc("/api/v1/daemon/protect/compose", s.handleDaemonProtectCompose)
+	mux.HandleFunc("/api/v1/daemon/restore/artifact", s.handleDaemonRestoreArtifact)
 	mux.HandleFunc("/api/v1/daemon/guard/compose", s.handleDaemonGuardCompose)
 	mux.HandleFunc("/api/v1/daemon/intercept/compose", s.handleDaemonInterceptCompose)
 	mux.HandleFunc("/api/v1/daemon/guard/kube-delete", s.handleDaemonGuardKubeDelete)
@@ -140,6 +141,20 @@ func (s *Server) handleDaemonProtectCompose(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	result, err := s.control.ProtectCompose(r.Context(), path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleDaemonRestoreArtifact(w http.ResponseWriter, r *http.Request) {
+	artifactID := r.URL.Query().Get("id")
+	if artifactID == "" {
+		http.Error(w, "missing id query parameter", http.StatusBadRequest)
+		return
+	}
+	result, err := s.control.RestoreArtifact(r.Context(), artifactID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

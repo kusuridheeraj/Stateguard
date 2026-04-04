@@ -24,6 +24,7 @@ Shipped capabilities:
 - executable installers for Windows, Linux, and macOS
 - installer and native package distribution where practical
 - Kubernetes beta guard flows and examples
+- first artifact restore orchestration path
 - launch and contributor content drafts
 - v2 extension-point documentation
 - examples and onboarding docs
@@ -35,6 +36,8 @@ Execution-track progress beyond the named phases:
 - stronger orchestration tests for multi-service Compose protection and artifact bundle creation
 - guard plus execution paths for risky Compose operations
 - daemon and dashboard API integration-style endpoint tests for protect, guard, intercept, and Kubernetes delete guard
+- configurable live execution plans for Compose backup commands
+- stricter restore semantics for Postgres, Redis, and Vault
 - startup-service installers plus safe Compose wrappers for Windows, Linux, and macOS
 
 ## V2

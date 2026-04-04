@@ -72,6 +72,7 @@ type RuntimeConfig struct {
 
 type ComposeRuntimeConfig struct {
 	ProjectBoundary string `yaml:"project_boundary"`
+	LiveExecution   bool   `yaml:"live_execution"`
 }
 
 type KubernetesRuntimeConfig struct {
@@ -119,6 +120,7 @@ func Default() Config {
 		Runtime: RuntimeConfig{
 			Compose: ComposeRuntimeConfig{
 				ProjectBoundary: "labels+compose_project",
+				LiveExecution:   false,
 			},
 			Kubernetes: KubernetesRuntimeConfig{
 				Mode: "beta",

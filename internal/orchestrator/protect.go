@@ -6,14 +6,16 @@ import (
 
 	"github.com/kusuridheeraj/stateguard/internal/adapterutil"
 	"github.com/kusuridheeraj/stateguard/internal/artifacts"
+	"github.com/kusuridheeraj/stateguard/internal/backupexec"
 	"github.com/kusuridheeraj/stateguard/internal/compose"
 	"github.com/kusuridheeraj/stateguard/pkg/sdk"
 	"github.com/kusuridheeraj/stateguard/pkg/types"
 )
 
 type Protector struct {
-	store    *artifacts.Store
-	registry *sdk.Registry
+	store           *artifacts.Store
+	registry        *sdk.Registry
+	composeExecutor backupexec.ComposeExecutor
 }
 
 type ProtectReport struct {
@@ -25,8 +27,24 @@ type ProtectReport struct {
 	ScopeHint types.ProtectedScope   `json:"scopeHint" yaml:"scopeHint"`
 }
 
+type RestoreReport struct {
+	ArtifactID string               `json:"artifactId" yaml:"artifactId"`
+	Adapter    string               `json:"adapter" yaml:"adapter"`
+	Recovered  bool                 `json:"recovered" yaml:"recovered"`
+	Details    map[string]any       `json:"details,omitempty" yaml:"details,omitempty"`
+	Record     types.ArtifactRecord `json:"record" yaml:"record"`
+}
+
 func NewProtector(store *artifacts.Store, registry *sdk.Registry) *Protector {
-	return &Protector{store: store, registry: registry}
+	return &Protector{
+		store:           store,
+		registry:        registry,
+		composeExecutor: backupexec.NewComposeExecutor(),
+	}
+}
+
+func (p *Protector) SetComposeLiveExecution(enabled bool) {
+	p.composeExecutor.ExecuteLive = enabled
 }
 
 func (p *Protector) ProtectCompose(ctx context.Context, path string) (ProtectReport, error) {
@@ -75,6 +93,13 @@ func (p *Protector) ProtectCompose(ctx context.Context, path string) (ProtectRep
 		if err != nil {
 			return ProtectReport{}, err
 		}
+		if project.Runtime == "compose" {
+			execResult, execErr := p.composeExecutor.ExecuteProtection(ctx, path, target, result.Manifest, record.BundleDir)
+			record.SizeBytes += execResult.BytesWritten
+			if execErr != nil {
+				return ProtectReport{}, execErr
+			}
+		}
 
 		validation, err := adapter.Validate(ctx, sdk.ArtifactRef{ID: record.ID, Path: record.Path})
 		if err != nil {
@@ -101,4 +126,43 @@ func (p *Protector) persistArtifact(adapterName string, result sdk.ProtectResult
 		return types.ArtifactRecord{}, fmt.Errorf("persist artifact bundle: %w", err)
 	}
 	return record, nil
+}
+
+func (p *Protector) RestoreArtifact(ctx context.Context, artifactID string) (RestoreReport, error) {
+	record, ok := p.store.GetByID(artifactID)
+	if !ok {
+		return RestoreReport{}, fmt.Errorf("artifact %s not found", artifactID)
+	}
+
+	payload, err := adapterutil.ReadArtifactManifest(record.Path)
+	if err != nil {
+		return RestoreReport{}, fmt.Errorf("read artifact manifest: %w", err)
+	}
+
+	adapterName, _ := payload["adapter"].(string)
+	if adapterName == "" {
+		return RestoreReport{}, fmt.Errorf("artifact %s is missing adapter metadata", artifactID)
+	}
+
+	adapter, ok := p.registry.GetByName(adapterName)
+	if !ok {
+		return RestoreReport{}, fmt.Errorf("adapter %s is not registered", adapterName)
+	}
+
+	result, err := adapter.Restore(ctx, sdk.RestoreRequest{
+		ArtifactID:   record.ID,
+		ArtifactPath: record.Path,
+		BundleDir:    record.BundleDir,
+	})
+	if err != nil {
+		return RestoreReport{}, err
+	}
+
+	return RestoreReport{
+		ArtifactID: record.ID,
+		Adapter:    adapterName,
+		Recovered:  result.Recovered,
+		Details:    result.Details,
+		Record:     record,
+	}, nil
 }

@@ -104,3 +104,34 @@ func TestInterceptComposeEndpointWithoutExecution(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestRestoreArtifactEndpoint(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	server, err := NewServer(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+
+	path := filepath.Clean(filepath.Join("..", "..", "examples", "windows-wsl2-compose", "compose.yaml"))
+	reqProtect := httptest.NewRequest(http.MethodGet, "/api/v1/protect/compose?path="+path, nil)
+	recProtect := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recProtect, reqProtect)
+	if recProtect.Code != http.StatusOK {
+		t.Fatalf("expected protect 200, got %d body=%s", recProtect.Code, recProtect.Body.String())
+	}
+
+	artifacts := server.control.Artifacts()
+	if len(artifacts) == 0 {
+		t.Fatal("expected artifact after protect")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/restore/artifact?id="+artifacts[0].ID, nil)
+	rec := httptest.NewRecorder()
+	server.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}

@@ -53,6 +53,15 @@ func (r *Registry) Resolve(ctx context.Context, target Target) (Adapter, Detecti
 	return nil, DetectionResult{}, false
 }
 
+func (r *Registry) GetByName(name string) (Adapter, bool) {
+	for _, adapter := range r.adapters {
+		if adapter.Name() == name {
+			return adapter, true
+		}
+	}
+	return nil, false
+}
+
 type MetadataView struct {
 	Name         string   `json:"name" yaml:"name"`
 	Official     bool     `json:"official" yaml:"official"`

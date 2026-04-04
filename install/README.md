@@ -22,6 +22,8 @@ The scripts in this directory are executable installers. They expect prebuilt bi
 - register startup services or startup tasks
 - create a safe Compose wrapper command that routes through `stateguard intercept compose`
 
+By default, Compose backup execution metadata is generated in planned mode. Set `runtime.compose.live_execution: true` in `safedata.yaml` when you want the daemon to attempt live backup command execution for supported adapters.
+
 ## Expected Install Layout
 
 - configuration: host-managed `safedata.yaml`

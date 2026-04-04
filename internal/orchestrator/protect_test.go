@@ -104,6 +104,9 @@ func TestProtectComposeCreatesAllOfficialAdapterArtifacts(t *testing.T) {
 				t.Fatalf("expected bundle file %s for %s: %v", relative, artifact.Service, err)
 			}
 		}
+		if _, err := os.Stat(filepath.Join(artifact.BundleDir, "execution.json")); err != nil {
+			t.Fatalf("expected execution metadata for %s: %v", artifact.Service, err)
+		}
 	}
 }
 

@@ -107,6 +107,18 @@ func (s *Store) LatestByScope(scope string) (types.ArtifactRecord, bool) {
 	return types.ArtifactRecord{}, false
 }
 
+func (s *Store) GetByID(id string) (types.ArtifactRecord, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, record := range s.records {
+		if record.ID == id {
+			return record, true
+		}
+	}
+	return types.ArtifactRecord{}, false
+}
+
 func (s *Store) Delete(ids []string) error {
 	if len(ids) == 0 {
 		return nil
