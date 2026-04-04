@@ -65,6 +65,17 @@ Service-aware adapters provide strong semantics for supported systems:
 - MongoDB
 - Kafka
 
+The adapter registry is now a first-class runtime component. It resolves services by runtime hints such as image names, mount characteristics, and stateful heuristics. When no official adapter matches, the generic fallback adapter may still protect the workload with degraded guarantees.
+
+### Orchestration Layer
+
+The orchestration layer turns adapter-level protection results into persisted artifact manifests and metadata records. In the current phase it provides:
+
+- adapter resolution through the registry
+- Compose workload to adapter target mapping
+- manifest-backed artifact persistence on the local host
+- validation result propagation into artifact metadata
+
 ## Protection Lifecycle
 
 1. Discover workloads and infer application boundaries.
@@ -74,6 +85,8 @@ Service-aware adapters provide strong semantics for supported systems:
 5. Intercept or receive a destructive action request.
 6. Decide whether a sufficiently recent verified recovery point exists.
 7. Allow or block the operation.
+
+In the current implementation phase, the orchestration path is able to simulate protection against Compose workloads and emit persisted artifact records for supported adapters and generic fallback.
 
 ## Hybrid Validation
 

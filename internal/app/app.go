@@ -67,12 +67,16 @@ func RunCLI(args []string, stdout, stderr io.Writer) error {
 		return runPolicyCommand(args[1:], stdout)
 	case "artifacts":
 		return runArtifactsCommand(stdout)
+	case "adapters":
+		return runAdaptersCommand(stdout)
 	case "scheduler":
 		return runSchedulerCommand(stdout)
 	case "retention":
 		return runRetentionCommand(stdout)
 	case "compose":
 		return runComposeCommand(args[1:], stdout)
+	case "protect":
+		return runProtectCommand(args[1:], stdout)
 	default:
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
@@ -165,6 +169,14 @@ func runArtifactsCommand(stdout io.Writer) error {
 	return writeJSON(stdout, map[string]any{"items": cp.Artifacts()})
 }
 
+func runAdaptersCommand(stdout io.Writer) error {
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, map[string]any{"items": cp.Adapters()})
+}
+
 func runSchedulerCommand(stdout io.Writer) error {
 	cp, err := loadControlPlane()
 	if err != nil {
@@ -203,6 +215,32 @@ func runComposeCommand(args []string, stdout io.Writer) error {
 	return writeJSON(stdout, project)
 }
 
+func runProtectCommand(args []string, stdout io.Writer) error {
+	if len(args) < 2 || args[0] != "compose" {
+		return errors.New("protect requires the subcommand: compose")
+	}
+
+	fs := flag.NewFlagSet("protect compose", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	path := fs.String("f", "", "path to compose file")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if *path == "" {
+		return errors.New("protect compose requires -f path")
+	}
+
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+	report, err := cp.ProtectCompose(context.Background(), *path)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, report)
+}
+
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "stateguard commands:")
 	_, _ = fmt.Fprintln(w, "  version")
@@ -211,9 +249,11 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  status")
 	_, _ = fmt.Fprintln(w, "  policy check")
 	_, _ = fmt.Fprintln(w, "  artifacts")
+	_, _ = fmt.Fprintln(w, "  adapters")
 	_, _ = fmt.Fprintln(w, "  scheduler")
 	_, _ = fmt.Fprintln(w, "  retention")
 	_, _ = fmt.Fprintln(w, "  compose inspect -f compose.yaml")
+	_, _ = fmt.Fprintln(w, "  protect compose -f compose.yaml")
 }
 
 func writeJSON(w io.Writer, value any) error {

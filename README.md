@@ -54,6 +54,7 @@ Supported strong-protection adapters in v1:
 4. The policy engine decides whether a recent verified recovery point exists.
 5. If protection is valid, the command continues.
 6. If protection is missing or unverifiable, the command is blocked.
+7. Supported adapters and the generic fallback emit recovery artifacts through the orchestration layer.
 
 Validation is hybrid:
 
@@ -105,9 +106,11 @@ stateguard config print-defaults
 stateguard status
 stateguard policy check
 stateguard artifacts
+stateguard adapters
 stateguard scheduler
 stateguard retention
 stateguard compose inspect -f examples/windows-wsl2-compose/compose.yaml
+stateguard protect compose -f examples/windows-wsl2-compose/compose.yaml
 ```
 
 Current service entrypoints:
@@ -115,6 +118,13 @@ Current service entrypoints:
 - `cmd/daemon` starts the daemon HTTP scaffold
 - `cmd/dashboard-api` starts the dashboard API scaffold
 - `cmd/cli` provides the first command surface
+
+Current Phase 3 capabilities:
+
+- official adapter registry for Postgres, Redis, Vault, MySQL, MongoDB, and Kafka
+- generic fallback adapter for unknown stateful services
+- manifest-backed artifact generation through the orchestration layer
+- Compose project inspection and protection simulation against example workloads
 
 ## License
 

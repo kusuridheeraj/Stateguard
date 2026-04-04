@@ -220,6 +220,8 @@ Deliver:
 - adapter SDK
 - official adapter scaffolds
 - generic fallback
+- registry-driven adapter resolution
+- orchestration-backed manifest persistence
 - example workloads
 
 ### Phase 4

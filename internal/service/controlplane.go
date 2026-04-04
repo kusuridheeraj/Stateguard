@@ -5,10 +5,19 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/kusuridheeraj/stateguard/adapters/generic"
+	"github.com/kusuridheeraj/stateguard/adapters/kafka"
+	"github.com/kusuridheeraj/stateguard/adapters/mongodb"
+	"github.com/kusuridheeraj/stateguard/adapters/mysql"
+	"github.com/kusuridheeraj/stateguard/adapters/postgres"
+	"github.com/kusuridheeraj/stateguard/adapters/redis"
+	"github.com/kusuridheeraj/stateguard/adapters/vault"
 	"github.com/kusuridheeraj/stateguard/internal/artifacts"
 	"github.com/kusuridheeraj/stateguard/internal/config"
+	"github.com/kusuridheeraj/stateguard/internal/orchestrator"
 	"github.com/kusuridheeraj/stateguard/internal/retention"
 	"github.com/kusuridheeraj/stateguard/internal/scheduler"
+	"github.com/kusuridheeraj/stateguard/pkg/sdk"
 	"github.com/kusuridheeraj/stateguard/pkg/types"
 )
 
@@ -20,6 +29,8 @@ type ControlPlane struct {
 	artifacts       *artifacts.Store
 	scheduler       *scheduler.Scheduler
 	retentionEngine retention.Engine
+	registry        *sdk.Registry
+	protector       *orchestrator.Protector
 }
 
 func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*ControlPlane, error) {
@@ -41,7 +52,17 @@ func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildIn
 		artifacts:       store,
 		scheduler:       scheduler.New(),
 		retentionEngine: retention.NewEngine(window),
+		registry: sdk.NewRegistry(
+			postgres.New(),
+			redis.New(),
+			vault.New(),
+			mysql.New(),
+			mongodb.New(),
+			kafka.New(),
+			generic.New(),
+		),
 	}
+	cp.protector = orchestrator.NewProtector(cp.artifacts, cp.registry)
 
 	cp.registerJobs()
 	return cp, nil
@@ -59,6 +80,12 @@ func (c *ControlPlane) registerJobs() {
 }
 
 func (c *ControlPlane) Status(serviceName string) types.SystemStatus {
+	records := c.artifacts.List()
+	scopes := make(map[string]struct{})
+	for _, record := range records {
+		scopes[record.Scope] = struct{}{}
+	}
+
 	return types.SystemStatus{
 		ServiceName:     serviceName,
 		Version:         c.build.Version,
@@ -66,7 +93,7 @@ func (c *ControlPlane) Status(serviceName string) types.SystemStatus {
 		ConfigSource:    c.config.Source,
 		StartedAt:       c.startedAt,
 		RuntimeTargets:  []types.RuntimeTarget{types.RuntimeCompose, types.RuntimeKubernetes},
-		ProtectedScopes: 0,
+		ProtectedScopes: len(scopes),
 		Artifacts:       c.artifacts.Summary(),
 	}
 }
@@ -82,6 +109,14 @@ func (c *ControlPlane) SchedulerJobs() []types.SchedulerJobStatus {
 func (c *ControlPlane) RetentionPreview() retention.Plan {
 	records := c.artifacts.List()
 	return c.retentionEngine.Evaluate(records, retention.Snapshot{}, c.config.Policy.Retention.MaxDiskUsagePercent, time.Now().UTC())
+}
+
+func (c *ControlPlane) Adapters() []sdk.MetadataView {
+	return c.registry.List()
+}
+
+func (c *ControlPlane) ProtectCompose(ctx context.Context, path string) (orchestrator.ProtectReport, error) {
+	return c.protector.ProtectCompose(ctx, path)
 }
 
 func (c *ControlPlane) RunStartupJobs(ctx context.Context) {

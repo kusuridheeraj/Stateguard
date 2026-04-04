@@ -41,6 +41,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	mux.HandleFunc("/api/v1/status", s.handleStatus)
 	mux.HandleFunc("/api/v1/overview", s.handleOverview)
 	mux.HandleFunc("/api/v1/artifacts", s.handleArtifacts)
+	mux.HandleFunc("/api/v1/adapters", s.handleAdapters)
 	mux.HandleFunc("/api/v1/scheduler", s.handleScheduler)
 
 	s.http = &http.Server{
@@ -99,6 +100,10 @@ func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleArtifacts(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": s.control.Artifacts()})
+}
+
+func (s *Server) handleAdapters(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"items": s.control.Adapters()})
 }
 
 func (s *Server) handleScheduler(w http.ResponseWriter, _ *http.Request) {

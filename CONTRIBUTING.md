@@ -33,6 +33,7 @@ Stateguard is intended to be a serious open-source infrastructure project. Contr
 - Favor explicit errors and structured logging.
 - Treat safety-related branches as first-class code paths.
 - Avoid introducing platform-specific behavior without tests or docs.
+- Keep repo-level docs in sync with shipped code paths in the same change set.
 
 ## Security
 
