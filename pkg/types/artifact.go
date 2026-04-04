@@ -7,7 +7,9 @@ type ArtifactRecord struct {
 	Scope              string    `json:"scope" yaml:"scope"`
 	Service            string    `json:"service" yaml:"service"`
 	Runtime            string    `json:"runtime" yaml:"runtime"`
+	BundleDir          string    `json:"bundleDir" yaml:"bundleDir"`
 	Path               string    `json:"path" yaml:"path"`
+	ChecksumSHA256     string    `json:"checksumSha256" yaml:"checksumSha256"`
 	SizeBytes          int64     `json:"sizeBytes" yaml:"sizeBytes"`
 	CreatedAt          time.Time `json:"createdAt" yaml:"createdAt"`
 	IntegrityValidated bool      `json:"integrityValidated" yaml:"integrityValidated"`

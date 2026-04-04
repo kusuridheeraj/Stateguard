@@ -71,6 +71,11 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.refresh.secondary {
+  padding: 10px 14px;
+  border-radius: 16px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -157,6 +162,43 @@ h2 {
 
 .warn {
   color: var(--warn);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.text-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.output {
+  margin: 16px 0 0;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(17, 32, 21, 0.04);
+  color: var(--ink);
+  overflow: auto;
+  min-height: 110px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 @media (max-width: 900px) {

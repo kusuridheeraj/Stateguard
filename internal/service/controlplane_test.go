@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kusuridheeraj/stateguard/internal/compose"
 	"github.com/kusuridheeraj/stateguard/internal/config"
 	"github.com/kusuridheeraj/stateguard/pkg/logging"
 	"github.com/kusuridheeraj/stateguard/pkg/types"
@@ -33,5 +34,53 @@ func TestControlPlaneProtectComposeUpdatesStatus(t *testing.T) {
 	}
 	if status.ProtectedScopes == 0 {
 		t.Fatalf("expected protected scopes in status, got %#v", status)
+	}
+}
+
+func TestControlPlaneInterceptComposeDownExecutesRunner(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	cp, err := NewControlPlane(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new control plane: %v", err)
+	}
+
+	var command []string
+	cp.composeRunner = compose.Runner{
+		Exec: func(_ context.Context, name string, args ...string) ([]byte, []byte, error) {
+			command = append([]string{name}, args...)
+			return []byte("down ok"), nil, nil
+		},
+	}
+
+	path := filepath.Join("..", "..", "examples", "windows-wsl2-compose", "compose.yaml")
+	result, err := cp.InterceptComposeDown(context.Background(), path, true, true)
+	if err != nil {
+		t.Fatalf("intercept compose down: %v", err)
+	}
+	if !result.Executed || result.RunResult == nil {
+		t.Fatalf("expected execution result, got %#v", result)
+	}
+	if len(command) == 0 {
+		t.Fatalf("expected docker command to be captured")
+	}
+}
+
+func TestControlPlaneGuardKubeDeleteBlocksStatefulManifest(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	cp, err := NewControlPlane(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new control plane: %v", err)
+	}
+
+	result, err := cp.GuardKubeDelete(filepath.Join("..", "..", "examples", "kubernetes-beta", "manifests.yaml"))
+	if err != nil {
+		t.Fatalf("guard kube delete: %v", err)
+	}
+	if result.Allowed {
+		t.Fatalf("expected stateful delete guard to block, got %#v", result)
 	}
 }

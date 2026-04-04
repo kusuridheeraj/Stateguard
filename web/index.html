@@ -46,6 +46,21 @@
 
         <section class="panel wide">
           <div class="panel-header">
+            <h3>Daemon Actions</h3>
+            <span class="badge">guard + protect</span>
+          </div>
+          <label class="field-label" for="composePath">Compose file</label>
+          <input id="composePath" class="text-input" value="examples/windows-wsl2-compose/compose.yaml" />
+          <div class="action-row">
+            <button id="guardComposeButton" class="refresh secondary">Guard Compose Down</button>
+            <button id="protectComposeButton" class="refresh secondary">Protect Compose</button>
+            <button id="guardKubeButton" class="refresh secondary">Guard Kube Delete</button>
+          </div>
+          <pre id="actionOutput" class="output">No daemon action executed yet.</pre>
+        </section>
+
+        <section class="panel wide">
+          <div class="panel-header">
             <h3>Registered Adapters</h3>
             <span id="adapterCount" class="badge">0</span>
           </div>

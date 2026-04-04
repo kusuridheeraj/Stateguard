@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/kusuridheeraj/stateguard/internal/config"
+	"github.com/kusuridheeraj/stateguard/internal/intercept"
 	"github.com/kusuridheeraj/stateguard/internal/service"
 	"github.com/kusuridheeraj/stateguard/pkg/types"
 )
@@ -47,6 +48,11 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	mux.HandleFunc("/api/v1/adapters", s.handleAdapters)
 	mux.HandleFunc("/api/v1/scheduler", s.handleScheduler)
 	mux.HandleFunc("/api/v1/retention/preview", s.handleRetentionPreview)
+	mux.HandleFunc("/api/v1/daemon/status", s.handleDaemonStatus)
+	mux.HandleFunc("/api/v1/daemon/protect/compose", s.handleDaemonProtectCompose)
+	mux.HandleFunc("/api/v1/daemon/guard/compose", s.handleDaemonGuardCompose)
+	mux.HandleFunc("/api/v1/daemon/intercept/compose", s.handleDaemonInterceptCompose)
+	mux.HandleFunc("/api/v1/daemon/guard/kube-delete", s.handleDaemonGuardKubeDelete)
 	mux.Handle("/", s.staticHandler())
 
 	s.http = &http.Server{
@@ -121,6 +127,88 @@ func (s *Server) handleScheduler(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleRetentionPreview(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, s.control.RetentionPreview())
+}
+
+func (s *Server) handleDaemonStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, s.control.Status("stateguard-daemon"))
+}
+
+func (s *Server) handleDaemonProtectCompose(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path query parameter", http.StatusBadRequest)
+		return
+	}
+	result, err := s.control.ProtectCompose(r.Context(), path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleDaemonGuardCompose(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path query parameter", http.StatusBadRequest)
+		return
+	}
+	operation := intercept.Operation(r.URL.Query().Get("operation"))
+	if operation == "" {
+		operation = intercept.OpComposeDown
+	}
+	result, err := s.control.GuardComposeOperation(r.Context(), path, operation)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleDaemonInterceptCompose(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path query parameter", http.StatusBadRequest)
+		return
+	}
+
+	command := r.URL.Query().Get("command")
+	execute := r.URL.Query().Get("execute") == "true"
+	switch command {
+	case "", "compose.down":
+		withVolumes := r.URL.Query().Get("withVolumes") == "true"
+		result, err := s.control.InterceptComposeDown(r.Context(), path, withVolumes, execute)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	case "compose.up":
+		detached := r.URL.Query().Get("detached") != "false"
+		build := r.URL.Query().Get("build") != "false"
+		result, err := s.control.InterceptComposeUp(r.Context(), path, detached, build, execute)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	default:
+		http.Error(w, "unsupported compose command", http.StatusBadRequest)
+	}
+}
+
+func (s *Server) handleDaemonGuardKubeDelete(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path query parameter", http.StatusBadRequest)
+		return
+	}
+	result, err := s.control.GuardKubeDelete(path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) staticHandler() http.Handler {

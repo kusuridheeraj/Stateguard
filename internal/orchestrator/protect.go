@@ -2,12 +2,9 @@ package orchestrator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
+	"github.com/kusuridheeraj/stateguard/internal/adapterutil"
 	"github.com/kusuridheeraj/stateguard/internal/artifacts"
 	"github.com/kusuridheeraj/stateguard/internal/compose"
 	"github.com/kusuridheeraj/stateguard/pkg/sdk"
@@ -99,32 +96,9 @@ func (p *Protector) ProtectCompose(ctx context.Context, path string) (ProtectRep
 }
 
 func (p *Protector) persistArtifact(adapterName string, result sdk.ProtectResult) (types.ArtifactRecord, error) {
-	record := result.Record
-	serviceDir := filepath.Join(p.store.Root(), sanitize(record.Scope), sanitize(record.Service))
-	if err := os.MkdirAll(serviceDir, 0o755); err != nil {
-		return types.ArtifactRecord{}, fmt.Errorf("create artifact dir: %w", err)
-	}
-
-	record.Path = filepath.Join(serviceDir, record.ID+".json")
-
-	payload := map[string]any{
-		"record":   record,
-		"adapter":  adapterName,
-		"manifest": result.Manifest,
-	}
-
-	content, err := json.MarshalIndent(payload, "", "  ")
+	record, err := adapterutil.WriteArtifactBundle(p.store.Root(), adapterName, result.Record, result.Manifest)
 	if err != nil {
-		return types.ArtifactRecord{}, fmt.Errorf("encode artifact manifest: %w", err)
+		return types.ArtifactRecord{}, fmt.Errorf("persist artifact bundle: %w", err)
 	}
-	if err := os.WriteFile(record.Path, content, 0o600); err != nil {
-		return types.ArtifactRecord{}, fmt.Errorf("write artifact manifest: %w", err)
-	}
-	record.SizeBytes = int64(len(content))
 	return record, nil
-}
-
-func sanitize(value string) string {
-	replacer := strings.NewReplacer("/", "-", "\\", "-", ":", "-")
-	return replacer.Replace(value)
 }

@@ -12,10 +12,11 @@
 3. Configure artifact storage, retention, and optional overrides in `safedata.yaml`.
 4. Validate protected Compose project boundaries.
 
-## Current Phase 4 Scaffolds
+## Current State
 
-- installer scaffold: `install/linux/install.sh`
-- Linux package metadata placeholder: `packaging/nfpm.yaml`
+- executable installer: `install/linux/install.sh`
+- `systemd` unit registration for daemon and dashboard API
+- Linux package metadata in `packaging/nfpm.yaml`
 
 ## Notes
 

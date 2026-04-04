@@ -43,6 +43,9 @@ func TestProtectComposeCreatesArtifacts(t *testing.T) {
 	if len(store.List()) != 1 {
 		t.Fatalf("expected artifact persisted in store")
 	}
+	if report.Artifacts[0].BundleDir == "" || report.Artifacts[0].ChecksumSHA256 == "" {
+		t.Fatalf("expected bundle metadata, got %#v", report.Artifacts[0])
+	}
 }
 
 func TestProtectComposeCreatesAllOfficialAdapterArtifacts(t *testing.T) {
@@ -96,6 +99,11 @@ func TestProtectComposeCreatesAllOfficialAdapterArtifacts(t *testing.T) {
 		if manifest["serviceType"] != expectations[artifact.Service] {
 			t.Fatalf("unexpected manifest service type for %s: %#v", artifact.Service, manifest["serviceType"])
 		}
+		for _, relative := range []string{"checksum.sha256", "capture-plan.json", "restore.sh", "restore.ps1"} {
+			if _, err := os.Stat(filepath.Join(artifact.BundleDir, relative)); err != nil {
+				t.Fatalf("expected bundle file %s for %s: %v", relative, artifact.Service, err)
+			}
+		}
 	}
 }
 
@@ -138,6 +146,9 @@ func TestProtectComposeCreatesServiceSpecificArtifacts(t *testing.T) {
 		manifest, _ := payload["manifest"].(map[string]any)
 		if manifest["serviceType"] != expectations[artifact.Service] {
 			t.Fatalf("unexpected manifest service type for %s: %#v", artifact.Service, manifest["serviceType"])
+		}
+		if artifact.BundleDir == "" {
+			t.Fatalf("expected bundle dir for %s", artifact.Service)
 		}
 	}
 }

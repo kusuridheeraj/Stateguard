@@ -19,11 +19,11 @@ Shipped capabilities:
 - adapter SDK
 - strong adapters for Postgres, Redis, Vault, MySQL, MongoDB, Kafka
 - generic fallback adapter for unknown stateful services
-- adapter registry and orchestration-backed artifact manifests
+- adapter registry and orchestration-backed recovery bundles
 - dashboard web console scaffold served by the dashboard API
-- installer and packaging skeletons
+- executable installers for Windows, Linux, and macOS
 - installer and native package distribution where practical
-- Kubernetes beta manifest inspection and examples
+- Kubernetes beta guard flows and examples
 - launch and contributor content drafts
 - v2 extension-point documentation
 - examples and onboarding docs
@@ -32,9 +32,10 @@ Execution-track progress beyond the named phases:
 
 - service-aware manifest and validation behavior for Postgres, Redis, and Vault
 - service-aware manifest and validation behavior for MySQL, MongoDB, and Kafka
-- stronger orchestration tests for multi-service Compose protection
-- first guard/evaluation layer for risky Compose operations
-- daemon and dashboard API integration-style endpoint tests
+- stronger orchestration tests for multi-service Compose protection and artifact bundle creation
+- guard plus execution paths for risky Compose operations
+- daemon and dashboard API integration-style endpoint tests for protect, guard, intercept, and Kubernetes delete guard
+- startup-service installers plus safe Compose wrappers for Windows, Linux, and macOS
 
 ## V2
 

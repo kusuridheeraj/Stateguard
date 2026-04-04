@@ -12,10 +12,11 @@
 3. Validate that Compose workloads are discovered and classified correctly.
 4. Confirm safe command and interception flows.
 
-## Current Phase 4 Scaffolds
+## Current State
 
-- installer scaffold: `install/macos/install.sh`
-- Homebrew formula placeholder: `packaging/homebrew/stateguard.rb`
+- executable installer: `install/macos/install.sh`
+- `launchd` registration for daemon and dashboard API
+- Homebrew formula metadata in `packaging/homebrew/stateguard.rb`
 
 ## Notes
 

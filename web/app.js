@@ -6,6 +6,11 @@ async function fetchJSON(path) {
   return response.json();
 }
 
+function setActionOutput(value) {
+  document.getElementById("actionOutput").textContent =
+    typeof value === "string" ? value : JSON.stringify(value, null, 2);
+}
+
 function renderCards(elementId, items, render) {
   const node = document.getElementById(elementId);
   node.innerHTML = "";
@@ -36,20 +41,21 @@ function formatBytes(bytes) {
 }
 
 async function load() {
-  const [status, adapters, artifacts, jobs] = await Promise.all([
+  const [status, daemonStatus, adapters, artifacts, jobs] = await Promise.all([
     fetchJSON("/api/v1/status"),
+    fetchJSON("/api/v1/daemon/status"),
     fetchJSON("/api/v1/adapters"),
     fetchJSON("/api/v1/artifacts"),
     fetchJSON("/api/v1/scheduler"),
   ]);
 
-  document.getElementById("modeValue").textContent = status.mode;
-  document.getElementById("configValue").textContent = status.configSource || "defaults";
-  document.getElementById("artifactCount").textContent = status.artifacts.count;
+  document.getElementById("modeValue").textContent = daemonStatus.mode;
+  document.getElementById("configValue").textContent = `${status.configSource || "defaults"} via ${daemonStatus.serviceName}`;
+  document.getElementById("artifactCount").textContent = daemonStatus.artifacts.count;
   document.getElementById("artifactSummary").textContent =
-    `${formatBytes(status.artifacts.totalSizeBytes)} total, ${status.artifacts.restoreTested} restore-tested`;
-  document.getElementById("scopeCount").textContent = status.protectedScopes;
-  document.getElementById("warningCount").textContent = status.artifacts.degradedArtifacts;
+    `${formatBytes(daemonStatus.artifacts.totalSizeBytes)} total, ${daemonStatus.artifacts.restoreTested} restore-tested`;
+  document.getElementById("scopeCount").textContent = daemonStatus.protectedScopes;
+  document.getElementById("warningCount").textContent = daemonStatus.artifacts.degradedArtifacts;
   document.getElementById("adapterCount").textContent = adapters.items.length;
 
   renderCards("adapters", adapters.items, (item) => `
@@ -71,8 +77,33 @@ async function load() {
   `);
 }
 
+async function runDaemonAction(path) {
+  const result = await fetchJSON(path);
+  setActionOutput(result);
+}
+
 document.getElementById("refreshButton").addEventListener("click", () => {
   load().catch((error) => console.error(error));
+});
+
+document.getElementById("guardComposeButton").addEventListener("click", () => {
+  const composePath = encodeURIComponent(document.getElementById("composePath").value);
+  runDaemonAction(`/api/v1/daemon/guard/compose?path=${composePath}&operation=compose.down.volumes`).catch((error) =>
+    setActionOutput(error.message),
+  );
+});
+
+document.getElementById("protectComposeButton").addEventListener("click", () => {
+  const composePath = encodeURIComponent(document.getElementById("composePath").value);
+  runDaemonAction(`/api/v1/daemon/protect/compose?path=${composePath}`).catch((error) =>
+    setActionOutput(error.message),
+  );
+});
+
+document.getElementById("guardKubeButton").addEventListener("click", () => {
+  runDaemonAction("/api/v1/daemon/guard/kube-delete?path=examples/kubernetes-beta/manifests.yaml").catch((error) =>
+    setActionOutput(error.message),
+  );
 });
 
 load().catch((error) => {

@@ -43,7 +43,12 @@ Transparent interception is required for the product vision, but implementation 
 - Compose and Docker flows use a controlled interception path that routes destructive intent through the daemon.
 - Kubernetes beta uses admission/controller-style integration and release-aware policy checks.
 
-The current enforcement track adds a first guard/evaluation layer for risky Compose operations. It runs protection preflight before allowing destructive intent to proceed.
+The current runtime path now includes:
+
+- guard evaluation for risky Compose operations
+- control-plane execution methods that run `docker compose down` and `docker compose up` after policy checks
+- daemon and dashboard API endpoints that expose the same protect, guard, and intercept behavior
+- installer-created wrapper commands that route Compose intent through Stateguard
 
 ### Dashboard
 
@@ -79,8 +84,16 @@ The orchestration layer turns adapter-level protection results into persisted ar
 
 - adapter resolution through the registry
 - Compose workload to adapter target mapping
-- manifest-backed artifact persistence on the local host
+- artifact bundle persistence on the local host
 - validation result propagation into artifact metadata
+
+Each persisted recovery bundle now contains:
+
+- `manifest.json`
+- `checksum.sha256`
+- `capture-plan.json`
+- `restore.sh`
+- `restore.ps1`
 
 ## Protection Lifecycle
 
@@ -92,7 +105,7 @@ The orchestration layer turns adapter-level protection results into persisted ar
 6. Decide whether a sufficiently recent verified recovery point exists.
 7. Allow or block the operation.
 
-In the current implementation phase, the orchestration path is able to simulate protection against Compose workloads and emit persisted artifact records for supported adapters and generic fallback.
+In the current implementation phase, the orchestration path is able to simulate protection against Compose workloads and emit persisted artifact bundles and records for supported adapters and generic fallback.
 
 The current execution track now includes concrete manifest generation and validation logic for the full initial official adapter set, with orchestrator tests that verify multi-service Compose flows.
 
@@ -147,5 +160,8 @@ The dashboard API currently exposes operator-facing endpoints for:
 - artifacts
 - scheduler state
 - retention preview
+- daemon status
+- Compose protect, guard, and intercept actions
+- Kubernetes beta delete guard
 
-The daemon API also exposes a guard preflight endpoint for risky Compose operations.
+The daemon API now exposes protect, guard, and intercept endpoints for risky Compose operations and a beta guard path for Kubernetes delete flows.

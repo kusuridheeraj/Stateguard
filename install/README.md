@@ -12,13 +12,26 @@ Stateguard v1 is designed to install:
 - Linux
 - macOS
 
-## Current Phase 4 State
+## Current State
 
-The scripts in this directory are installer scaffolds. They document the intended installation contract and create the directory layout that later phases will use for service registration and binary placement.
+The scripts in this directory are executable installers. They expect prebuilt binaries in `dist/<platform>` and perform the following:
+
+- create install, config, and artifact directories
+- copy the CLI, daemon, and dashboard API binaries
+- write a default `safedata.yaml` if one does not exist
+- register startup services or startup tasks
+- create a safe Compose wrapper command that routes through `stateguard intercept compose`
 
 ## Expected Install Layout
 
 - configuration: host-managed `safedata.yaml`
 - artifacts: host-managed local artifact directory
 - binaries: platform-appropriate install location
-- daemon: registered as a system service or launch agent
+- daemon: registered as a startup task, system service, or launch daemon
+- Compose wrapper: platform-local helper command that routes destructive intent through Stateguard
+
+## Platform Notes
+
+- Windows installer registers `StateguardDaemon` and `StateguardDashboardAPI` scheduled tasks under `SYSTEM`
+- Linux installer writes `systemd` units and enables them immediately
+- macOS installer writes `launchd` plists and bootstraps them immediately

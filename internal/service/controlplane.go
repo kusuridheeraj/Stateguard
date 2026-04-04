@@ -13,8 +13,10 @@ import (
 	"github.com/kusuridheeraj/stateguard/adapters/redis"
 	"github.com/kusuridheeraj/stateguard/adapters/vault"
 	"github.com/kusuridheeraj/stateguard/internal/artifacts"
+	"github.com/kusuridheeraj/stateguard/internal/compose"
 	"github.com/kusuridheeraj/stateguard/internal/config"
 	"github.com/kusuridheeraj/stateguard/internal/intercept"
+	"github.com/kusuridheeraj/stateguard/internal/kube"
 	"github.com/kusuridheeraj/stateguard/internal/orchestrator"
 	"github.com/kusuridheeraj/stateguard/internal/retention"
 	"github.com/kusuridheeraj/stateguard/internal/scheduler"
@@ -33,6 +35,15 @@ type ControlPlane struct {
 	registry        *sdk.Registry
 	protector       *orchestrator.Protector
 	interceptor     intercept.Evaluator
+	composeRunner   compose.Runner
+}
+
+type ComposeInterception struct {
+	Guard     intercept.Result   `json:"guard" yaml:"guard"`
+	Executed  bool               `json:"executed" yaml:"executed"`
+	Command   string             `json:"command" yaml:"command"`
+	Compose   string             `json:"compose" yaml:"compose"`
+	RunResult *compose.RunResult `json:"runResult,omitempty" yaml:"runResult,omitempty"`
 }
 
 func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*ControlPlane, error) {
@@ -69,6 +80,7 @@ func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildIn
 		Mode:           cfg.Policy.Mode,
 		ProtectCompose: cp.protector.ProtectCompose,
 	}
+	cp.composeRunner = compose.NewRunner()
 
 	cp.registerJobs()
 	return cp, nil
@@ -127,6 +139,52 @@ func (c *ControlPlane) ProtectCompose(ctx context.Context, path string) (orchest
 
 func (c *ControlPlane) GuardComposeOperation(ctx context.Context, path string, operation intercept.Operation) (intercept.Result, error) {
 	return c.interceptor.EvaluateComposeOperation(ctx, path, operation)
+}
+
+func (c *ControlPlane) InterceptComposeDown(ctx context.Context, path string, withVolumes bool, execute bool) (ComposeInterception, error) {
+	operation := intercept.OpComposeDown
+	if withVolumes {
+		operation = intercept.OpComposeDownWithVolumes
+	}
+
+	guard, err := c.GuardComposeOperation(ctx, path, operation)
+	result := ComposeInterception{
+		Guard:    guard,
+		Command:  string(operation),
+		Compose:  path,
+		Executed: false,
+	}
+	if err != nil {
+		return result, err
+	}
+	if !execute || !guard.Allowed {
+		return result, nil
+	}
+
+	runResult, err := c.composeRunner.Down(ctx, path, true, withVolumes)
+	result.Executed = true
+	result.RunResult = &runResult
+	return result, err
+}
+
+func (c *ControlPlane) InterceptComposeUp(ctx context.Context, path string, detached bool, build bool, execute bool) (ComposeInterception, error) {
+	result := ComposeInterception{
+		Command:  "compose.up",
+		Compose:  path,
+		Executed: false,
+	}
+	if !execute {
+		return result, nil
+	}
+
+	runResult, err := c.composeRunner.Up(ctx, path, detached, build)
+	result.Executed = true
+	result.RunResult = &runResult
+	return result, err
+}
+
+func (c *ControlPlane) GuardKubeDelete(path string) (kube.GuardResult, error) {
+	return kube.GuardDelete(path)
 }
 
 func (c *ControlPlane) RunStartupJobs(ctx context.Context) {

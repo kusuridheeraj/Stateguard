@@ -1,6 +1,6 @@
 # Packaging
 
-This directory holds native packaging scaffolds for Stateguard.
+This directory holds native packaging assets for Stateguard.
 
 ## Intended Distribution Channels
 
@@ -8,6 +8,12 @@ This directory holds native packaging scaffolds for Stateguard.
 - macOS: `brew` and installer bundle
 - Linux: package-manager friendly release artifacts plus direct installer
 
-## Current Phase 4 State
+## Current State
 
-The manifests in this directory are placeholders that define naming, install intent, and release structure. They are not yet publish-ready packages.
+The installer scripts under [install](../install/README.md) are now executable and perform real host setup. The manifests in this directory remain the packaging side of that work:
+
+- `nfpm.yaml` tracks Linux package metadata and expected install layout
+- `homebrew/stateguard.rb` tracks Homebrew packaging intent
+- `winget/stateguard.yaml` tracks Windows package metadata
+
+These files still need release-versioned checksums and distribution URLs before public publishing, but they are aligned with the current installer contract rather than placeholder-only scaffolds.

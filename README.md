@@ -55,7 +55,7 @@ Supported strong-protection adapters in v1:
 4. The policy engine decides whether a recent verified recovery point exists.
 5. If protection is valid, the command continues.
 6. If protection is missing or unverifiable, the command is blocked.
-7. Supported adapters and the generic fallback emit recovery artifacts through the orchestration layer.
+7. Supported adapters and the generic fallback emit recovery bundles through the orchestration layer.
 
 Validation is hybrid:
 
@@ -118,6 +118,9 @@ stateguard compose inspect -f examples/windows-wsl2-compose/compose.yaml
 stateguard kube inspect -f examples/kubernetes-beta/manifests.yaml
 stateguard protect compose -f examples/windows-wsl2-compose/compose.yaml
 stateguard guard compose -f examples/windows-wsl2-compose/compose.yaml --command compose.down
+stateguard intercept compose down -f examples/windows-wsl2-compose/compose.yaml
+stateguard compose down -f examples/windows-wsl2-compose/compose.yaml --with-volumes
+stateguard kube guard-delete -f examples/kubernetes-beta/manifests.yaml
 ```
 
 Current service entrypoints:
@@ -137,8 +140,8 @@ Current Phase 4 capabilities:
 
 - dashboard web console served by the dashboard API
 - operator API endpoints for status, overview, adapters, artifacts, scheduler state, and retention preview
-- installer scaffolds for Windows, Linux, and macOS
-- packaging placeholders for winget, Homebrew, and Linux package flows
+- executable installers for Windows, Linux, and macOS that copy built binaries, write config, and register host startup services
+- package metadata for winget, Homebrew, and Linux package flows
 
 Current Phase 5 capabilities:
 
@@ -163,6 +166,15 @@ Current enforcement-track improvements:
 - daemon endpoint coverage for guard preflight and status surfaces
 - control-plane tests that exercise protection before operation allowance
 
+Current runtime-hardening improvements:
+
+- real control-plane interception methods for `compose down` and `compose up`
+- daemon and dashboard API endpoints for protect, guard, intercept, and Kubernetes delete guard paths
+- dashboard action panel wired to the daemon-backed endpoints
+- Kubernetes delete guard beyond manifest inspection-only CLI output
+- recovery bundles written as directories with `manifest.json`, `checksum.sha256`, `capture-plan.json`, `restore.sh`, and `restore.ps1`
+- install scripts now register startup tasks/services and create a safe Compose wrapper command
+
 Dashboard and API surfaces:
 
 - `/`
@@ -174,6 +186,14 @@ Dashboard and API surfaces:
 - `/api/v1/scheduler`
 - `/api/v1/retention/preview`
 - `/api/v1/guard/compose`
+- `/api/v1/protect/compose`
+- `/api/v1/intercept/compose`
+- `/api/v1/guard/kube-delete`
+- `/api/v1/daemon/status`
+- `/api/v1/daemon/protect/compose`
+- `/api/v1/daemon/guard/compose`
+- `/api/v1/daemon/intercept/compose`
+- `/api/v1/daemon/guard/kube-delete`
 
 ## License
 

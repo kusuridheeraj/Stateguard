@@ -83,6 +83,8 @@ func RunCLI(args []string, stdout, stderr io.Writer) error {
 		return runProtectCommand(args[1:], stdout)
 	case "guard":
 		return runGuardCommand(args[1:], stdout)
+	case "intercept":
+		return runInterceptCommand(args[1:], stdout)
 	default:
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
@@ -200,25 +202,34 @@ func runRetentionCommand(stdout io.Writer) error {
 }
 
 func runComposeCommand(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "inspect" {
-		return errors.New("compose requires the subcommand: inspect")
+	if len(args) == 0 {
+		return errors.New("compose requires a subcommand: inspect, down, or up")
 	}
 
-	fs := flag.NewFlagSet("compose inspect", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	path := fs.String("f", "", "path to compose file")
-	if err := fs.Parse(args[1:]); err != nil {
-		return err
-	}
-	if *path == "" {
-		return errors.New("compose inspect requires -f path")
-	}
+	switch args[0] {
+	case "inspect":
+		fs := flag.NewFlagSet("compose inspect", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		path := fs.String("f", "", "path to compose file")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *path == "" {
+			return errors.New("compose inspect requires -f path")
+		}
 
-	project, err := compose.Discover(*path)
-	if err != nil {
-		return err
+		project, err := compose.Discover(*path)
+		if err != nil {
+			return err
+		}
+		return writeJSON(stdout, project)
+	case "down":
+		return runComposeDown(args[1:], stdout)
+	case "up":
+		return runComposeUp(args[1:], stdout)
+	default:
+		return fmt.Errorf("unknown compose subcommand %q", args[0])
 	}
-	return writeJSON(stdout, project)
 }
 
 func runProtectCommand(args []string, stdout io.Writer) error {
@@ -248,25 +259,46 @@ func runProtectCommand(args []string, stdout io.Writer) error {
 }
 
 func runKubeCommand(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "inspect" {
-		return errors.New("kube requires the subcommand: inspect")
+	if len(args) == 0 {
+		return errors.New("kube requires a subcommand: inspect or guard-delete")
 	}
 
-	fs := flag.NewFlagSet("kube inspect", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	path := fs.String("f", "", "path to kubernetes manifests")
-	if err := fs.Parse(args[1:]); err != nil {
-		return err
-	}
-	if *path == "" {
-		return errors.New("kube inspect requires -f path")
-	}
+	switch args[0] {
+	case "inspect":
+		fs := flag.NewFlagSet("kube inspect", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		path := fs.String("f", "", "path to kubernetes manifests")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *path == "" {
+			return errors.New("kube inspect requires -f path")
+		}
 
-	descriptor, err := kube.Discover(*path)
-	if err != nil {
-		return err
+		descriptor, err := kube.Discover(*path)
+		if err != nil {
+			return err
+		}
+		return writeJSON(stdout, descriptor)
+	case "guard-delete":
+		fs := flag.NewFlagSet("kube guard-delete", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		path := fs.String("f", "", "path to kubernetes manifests")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *path == "" {
+			return errors.New("kube guard-delete requires -f path")
+		}
+
+		result, err := kube.GuardDelete(*path)
+		if err != nil {
+			return err
+		}
+		return writeJSON(stdout, result)
+	default:
+		return fmt.Errorf("unknown kube subcommand %q", args[0])
 	}
-	return writeJSON(stdout, descriptor)
 }
 
 func runGuardCommand(args []string, stdout io.Writer) error {
@@ -297,6 +329,74 @@ func runGuardCommand(args []string, stdout io.Writer) error {
 	return writeJSON(stdout, result)
 }
 
+func runInterceptCommand(args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] != "compose" {
+		return errors.New("intercept requires the subcommand: compose")
+	}
+	if len(args) < 2 {
+		return errors.New("intercept compose requires an operation such as down or up")
+	}
+
+	switch args[1] {
+	case "down":
+		return runComposeDown(args[2:], stdout)
+	case "up":
+		return runComposeUp(args[2:], stdout)
+	default:
+		return fmt.Errorf("unknown intercept compose operation %q", args[1])
+	}
+}
+
+func runComposeDown(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("compose down", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	path := fs.String("f", "", "path to compose file")
+	execute := fs.Bool("execute", false, "execute docker compose down after guard")
+	withVolumes := fs.Bool("with-volumes", false, "treat this as volume-destructive")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *path == "" {
+		return errors.New("compose down requires -f path")
+	}
+
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+	result, err := cp.InterceptComposeDown(context.Background(), *path, *withVolumes, *execute)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, result)
+}
+
+func runComposeUp(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("compose up", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	path := fs.String("f", "", "path to compose file")
+	execute := fs.Bool("execute", false, "execute docker compose up after command preparation")
+	detached := fs.Bool("d", true, "run detached")
+	build := fs.Bool("build", true, "build before starting")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *path == "" {
+		return errors.New("compose up requires -f path")
+	}
+
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+
+	result, err := cp.InterceptComposeUp(context.Background(), *path, *detached, *build, *execute)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, result)
+}
+
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "stateguard commands:")
 	_, _ = fmt.Fprintln(w, "  version")
@@ -309,9 +409,13 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  scheduler")
 	_, _ = fmt.Fprintln(w, "  retention")
 	_, _ = fmt.Fprintln(w, "  compose inspect -f compose.yaml")
+	_, _ = fmt.Fprintln(w, "  compose down -f compose.yaml [--execute]")
+	_, _ = fmt.Fprintln(w, "  compose up -f compose.yaml [--execute]")
 	_, _ = fmt.Fprintln(w, "  kube inspect -f manifests.yaml")
+	_, _ = fmt.Fprintln(w, "  kube guard-delete -f manifests.yaml")
 	_, _ = fmt.Fprintln(w, "  protect compose -f compose.yaml")
 	_, _ = fmt.Fprintln(w, "  guard compose -f compose.yaml --command compose.down")
+	_, _ = fmt.Fprintln(w, "  intercept compose down -f compose.yaml [--execute]")
 }
 
 func writeJSON(w io.Writer, value any) error {
