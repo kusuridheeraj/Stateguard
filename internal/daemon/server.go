@@ -44,6 +44,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	mux.HandleFunc("/api/v1/adapters", s.handleAdapters)
 	mux.HandleFunc("/api/v1/scheduler", s.handleScheduler)
 	mux.HandleFunc("/api/v1/retention/preview", s.handleRetentionPreview)
+	mux.HandleFunc("/api/v1/guard/compose", s.handleGuardCompose)
 
 	s.http = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.Daemon.Host, cfg.Daemon.Port),
@@ -52,6 +53,10 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	}
 
 	return s, nil
+}
+
+func (s *Server) Handler() http.Handler {
+	return s.http.Handler
 }
 
 func (s *Server) Run(ctx context.Context) error {
@@ -106,6 +111,20 @@ func (s *Server) handleScheduler(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleRetentionPreview(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, s.control.RetentionPreview())
+}
+
+func (s *Server) handleGuardCompose(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path query parameter", http.StatusBadRequest)
+		return
+	}
+	result, err := s.control.GuardComposeOperation(r.Context(), path, "compose.down")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func writeJSON(w http.ResponseWriter, code int, value any) {

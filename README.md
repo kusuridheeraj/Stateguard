@@ -117,6 +117,7 @@ stateguard retention
 stateguard compose inspect -f examples/windows-wsl2-compose/compose.yaml
 stateguard kube inspect -f examples/kubernetes-beta/manifests.yaml
 stateguard protect compose -f examples/windows-wsl2-compose/compose.yaml
+stateguard guard compose -f examples/windows-wsl2-compose/compose.yaml --command compose.down
 ```
 
 Current service entrypoints:
@@ -156,6 +157,12 @@ Current adapter-wave improvements:
 - concrete service-aware manifest and validation behavior for MySQL, MongoDB, and Kafka
 - orchestration coverage for the full initial official adapter set
 
+Current enforcement-track improvements:
+
+- first guard/evaluation layer for risky Compose operations
+- daemon endpoint coverage for guard preflight and status surfaces
+- control-plane tests that exercise protection before operation allowance
+
 Dashboard and API surfaces:
 
 - `/`
@@ -166,6 +173,7 @@ Dashboard and API surfaces:
 - `/api/v1/artifacts`
 - `/api/v1/scheduler`
 - `/api/v1/retention/preview`
+- `/api/v1/guard/compose`
 
 ## License
 

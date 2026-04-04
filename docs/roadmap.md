@@ -33,6 +33,8 @@ Execution-track progress beyond the named phases:
 - service-aware manifest and validation behavior for Postgres, Redis, and Vault
 - service-aware manifest and validation behavior for MySQL, MongoDB, and Kafka
 - stronger orchestration tests for multi-service Compose protection
+- first guard/evaluation layer for risky Compose operations
+- daemon and dashboard API integration-style endpoint tests
 
 ## V2
 

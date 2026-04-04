@@ -16,6 +16,7 @@ import (
 	"github.com/kusuridheeraj/stateguard/internal/config"
 	"github.com/kusuridheeraj/stateguard/internal/daemon"
 	"github.com/kusuridheeraj/stateguard/internal/dashboardapi"
+	"github.com/kusuridheeraj/stateguard/internal/intercept"
 	"github.com/kusuridheeraj/stateguard/internal/kube"
 	"github.com/kusuridheeraj/stateguard/internal/policy"
 	"github.com/kusuridheeraj/stateguard/internal/service"
@@ -80,6 +81,8 @@ func RunCLI(args []string, stdout, stderr io.Writer) error {
 		return runKubeCommand(args[1:], stdout)
 	case "protect":
 		return runProtectCommand(args[1:], stdout)
+	case "guard":
+		return runGuardCommand(args[1:], stdout)
 	default:
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
@@ -266,6 +269,34 @@ func runKubeCommand(args []string, stdout io.Writer) error {
 	return writeJSON(stdout, descriptor)
 }
 
+func runGuardCommand(args []string, stdout io.Writer) error {
+	if len(args) < 2 || args[0] != "compose" {
+		return errors.New("guard requires the subcommand: compose")
+	}
+
+	fs := flag.NewFlagSet("guard compose", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	path := fs.String("f", "", "path to compose file")
+	command := fs.String("command", string(intercept.OpComposeDown), "destructive command to preflight")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if *path == "" {
+		return errors.New("guard compose requires -f path")
+	}
+
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+
+	result, err := cp.GuardComposeOperation(context.Background(), *path, intercept.Operation(*command))
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, result)
+}
+
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "stateguard commands:")
 	_, _ = fmt.Fprintln(w, "  version")
@@ -280,6 +311,7 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  compose inspect -f compose.yaml")
 	_, _ = fmt.Fprintln(w, "  kube inspect -f manifests.yaml")
 	_, _ = fmt.Fprintln(w, "  protect compose -f compose.yaml")
+	_, _ = fmt.Fprintln(w, "  guard compose -f compose.yaml --command compose.down")
 }
 
 func writeJSON(w io.Writer, value any) error {

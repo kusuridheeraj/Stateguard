@@ -14,6 +14,7 @@ import (
 	"github.com/kusuridheeraj/stateguard/adapters/vault"
 	"github.com/kusuridheeraj/stateguard/internal/artifacts"
 	"github.com/kusuridheeraj/stateguard/internal/config"
+	"github.com/kusuridheeraj/stateguard/internal/intercept"
 	"github.com/kusuridheeraj/stateguard/internal/orchestrator"
 	"github.com/kusuridheeraj/stateguard/internal/retention"
 	"github.com/kusuridheeraj/stateguard/internal/scheduler"
@@ -31,6 +32,7 @@ type ControlPlane struct {
 	retentionEngine retention.Engine
 	registry        *sdk.Registry
 	protector       *orchestrator.Protector
+	interceptor     intercept.Evaluator
 }
 
 func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*ControlPlane, error) {
@@ -63,6 +65,10 @@ func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildIn
 		),
 	}
 	cp.protector = orchestrator.NewProtector(cp.artifacts, cp.registry)
+	cp.interceptor = intercept.Evaluator{
+		Mode:           cfg.Policy.Mode,
+		ProtectCompose: cp.protector.ProtectCompose,
+	}
 
 	cp.registerJobs()
 	return cp, nil
@@ -117,6 +123,10 @@ func (c *ControlPlane) Adapters() []sdk.MetadataView {
 
 func (c *ControlPlane) ProtectCompose(ctx context.Context, path string) (orchestrator.ProtectReport, error) {
 	return c.protector.ProtectCompose(ctx, path)
+}
+
+func (c *ControlPlane) GuardComposeOperation(ctx context.Context, path string, operation intercept.Operation) (intercept.Result, error) {
+	return c.interceptor.EvaluateComposeOperation(ctx, path, operation)
 }
 
 func (c *ControlPlane) RunStartupJobs(ctx context.Context) {

@@ -58,6 +58,10 @@ func NewServer(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*
 	return s, nil
 }
 
+func (s *Server) Handler() http.Handler {
+	return s.http.Handler
+}
+
 func (s *Server) Run(ctx context.Context) error {
 	errCh := make(chan error, 1)
 

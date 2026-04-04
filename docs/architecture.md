@@ -43,6 +43,8 @@ Transparent interception is required for the product vision, but implementation 
 - Compose and Docker flows use a controlled interception path that routes destructive intent through the daemon.
 - Kubernetes beta uses admission/controller-style integration and release-aware policy checks.
 
+The current enforcement track adds a first guard/evaluation layer for risky Compose operations. It runs protection preflight before allowing destructive intent to proceed.
+
 ### Dashboard
 
 The dashboard should show:
@@ -145,3 +147,5 @@ The dashboard API currently exposes operator-facing endpoints for:
 - artifacts
 - scheduler state
 - retention preview
+
+The daemon API also exposes a guard preflight endpoint for risky Compose operations.
