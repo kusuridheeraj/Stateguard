@@ -24,6 +24,7 @@ type SystemStatus struct {
 	StartedAt       time.Time       `json:"startedAt" yaml:"startedAt"`
 	RuntimeTargets  []RuntimeTarget `json:"runtimeTargets" yaml:"runtimeTargets"`
 	ProtectedScopes int             `json:"protectedScopes" yaml:"protectedScopes"`
+	Artifacts       ArtifactSummary `json:"artifacts" yaml:"artifacts"`
 }
 
 type ProtectionState struct {

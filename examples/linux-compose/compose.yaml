@@ -1,0 +1,19 @@
+name: stateguard-demo
+
+services:
+  postgres:
+    image: postgres:16
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    volumes:
+      - redis-data:/data
+
+  worker:
+    image: ghcr.io/example/worker:latest
+
+volumes:
+  db-data: {}
+  redis-data: {}

@@ -12,10 +12,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/kusuridheeraj/stateguard/internal/compose"
 	"github.com/kusuridheeraj/stateguard/internal/config"
 	"github.com/kusuridheeraj/stateguard/internal/daemon"
 	"github.com/kusuridheeraj/stateguard/internal/dashboardapi"
 	"github.com/kusuridheeraj/stateguard/internal/policy"
+	"github.com/kusuridheeraj/stateguard/internal/service"
 	"github.com/kusuridheeraj/stateguard/pkg/logging"
 	"github.com/kusuridheeraj/stateguard/pkg/types"
 )
@@ -41,7 +43,11 @@ func RunDaemon() error {
 		Format: "text",
 	})
 
-	return daemon.NewServer(logger, cfg, buildInfo).Run(ctx)
+	server, err := daemon.NewServer(logger, cfg, buildInfo)
+	if err != nil {
+		return err
+	}
+	return server.Run(ctx)
 }
 
 func RunCLI(args []string, stdout, stderr io.Writer) error {
@@ -59,6 +65,14 @@ func RunCLI(args []string, stdout, stderr io.Writer) error {
 		return runStatusCommand(stdout)
 	case "policy":
 		return runPolicyCommand(args[1:], stdout)
+	case "artifacts":
+		return runArtifactsCommand(stdout)
+	case "scheduler":
+		return runSchedulerCommand(stdout)
+	case "retention":
+		return runRetentionCommand(stdout)
+	case "compose":
+		return runComposeCommand(args[1:], stdout)
 	default:
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
@@ -79,7 +93,11 @@ func RunDashboardAPI() error {
 		Format: "text",
 	})
 
-	return dashboardapi.NewServer(logger, cfg, buildInfo).Run(ctx)
+	server, err := dashboardapi.NewServer(logger, cfg, buildInfo)
+	if err != nil {
+		return err
+	}
+	return server.Run(ctx)
 }
 
 func runConfigCommand(args []string, stdout io.Writer) error {
@@ -114,15 +132,11 @@ func runConfigCommand(args []string, stdout io.Writer) error {
 }
 
 func runStatusCommand(stdout io.Writer) error {
-	status := types.SystemStatus{
-		ServiceName:     "stateguard-cli",
-		Version:         buildInfo.Version,
-		Mode:            "bootstrap",
-		ConfigSource:    os.Getenv("STATEGUARD_CONFIG"),
-		RuntimeTargets:  []types.RuntimeTarget{types.RuntimeCompose, types.RuntimeKubernetes},
-		ProtectedScopes: 0,
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
 	}
-	return writeJSON(stdout, status)
+	return writeJSON(stdout, cp.Status("stateguard-cli"))
 }
 
 func runPolicyCommand(args []string, stdout io.Writer) error {
@@ -143,6 +157,52 @@ func runPolicyCommand(args []string, stdout io.Writer) error {
 	return writeJSON(stdout, decision)
 }
 
+func runArtifactsCommand(stdout io.Writer) error {
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, map[string]any{"items": cp.Artifacts()})
+}
+
+func runSchedulerCommand(stdout io.Writer) error {
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, map[string]any{"jobs": cp.SchedulerJobs()})
+}
+
+func runRetentionCommand(stdout io.Writer) error {
+	cp, err := loadControlPlane()
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, cp.RetentionPreview())
+}
+
+func runComposeCommand(args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] != "inspect" {
+		return errors.New("compose requires the subcommand: inspect")
+	}
+
+	fs := flag.NewFlagSet("compose inspect", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	path := fs.String("f", "", "path to compose file")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if *path == "" {
+		return errors.New("compose inspect requires -f path")
+	}
+
+	project, err := compose.Discover(*path)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, project)
+}
+
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "stateguard commands:")
 	_, _ = fmt.Fprintln(w, "  version")
@@ -150,10 +210,28 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  config print-defaults")
 	_, _ = fmt.Fprintln(w, "  status")
 	_, _ = fmt.Fprintln(w, "  policy check")
+	_, _ = fmt.Fprintln(w, "  artifacts")
+	_, _ = fmt.Fprintln(w, "  scheduler")
+	_, _ = fmt.Fprintln(w, "  retention")
+	_, _ = fmt.Fprintln(w, "  compose inspect -f compose.yaml")
 }
 
 func writeJSON(w io.Writer, value any) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
+}
+
+func loadControlPlane() (*service.ControlPlane, error) {
+	cfg, err := config.Load(os.Getenv("STATEGUARD_CONFIG"))
+	if err != nil {
+		return nil, err
+	}
+
+	logger := logging.New(logging.Config{
+		Level:  slog.LevelInfo,
+		Format: "text",
+	})
+
+	return service.NewControlPlane(logger, cfg, buildInfo)
 }

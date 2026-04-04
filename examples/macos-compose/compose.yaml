@@ -1,0 +1,19 @@
+name: stateguard-demo
+
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+
+  vault:
+    image: hashicorp/vault:latest
+    volumes:
+      - vault-data:/vault/file
+
+  web:
+    image: ghcr.io/example/web:latest
+
+volumes:
+  mongo-data: {}
+  vault-data: {}

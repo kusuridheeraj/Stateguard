@@ -104,6 +104,10 @@ stateguard config validate -f safedata.yaml
 stateguard config print-defaults
 stateguard status
 stateguard policy check
+stateguard artifacts
+stateguard scheduler
+stateguard retention
+stateguard compose inspect -f examples/windows-wsl2-compose/compose.yaml
 ```
 
 Current service entrypoints:
