@@ -9,6 +9,7 @@ Stateguard is an open-source state protection platform for destructive infrastru
 - `docker compose down`
 - `docker compose down -v`
 - `docker rm`
+- `docker rm -v`
 - `docker volume rm`
 - `docker system prune`
 - Kubernetes delete or uninstall flows later
@@ -166,12 +167,14 @@ Implemented:
   - `docker compose -f <file> down`
   - `docker compose -f <file> down -v`
   - `docker compose -f <file> up`
+  - `docker rm`
+  - `docker rm -v`
   - `docker volume rm`
   - `docker system prune`
 
 Current limitation:
 
-- raw `docker volume rm` and `docker system prune` now return structured host-global denials with targets, flags, and warnings preserved
+- raw `docker rm`, `docker volume rm` and `docker system prune` now return structured host-global denials with targets, flags, and warnings preserved
 - they are intentionally not auto-executed yet because safe scope mapping is not solved for arbitrary host-level destructive commands
 
 ## Current Kubernetes Enforcement Model

@@ -6,8 +6,10 @@ import (
 	"github.com/kusuridheeraj/stateguard/pkg/types"
 )
 
+// AdmissionPolicyVersion is the current version of the Stateguard admission policy.
 const AdmissionPolicyVersion = "admission.k8s.stateguard/v1"
 
+// ProtectionRequirement describes a specific resource that requires protection before deletion.
 type ProtectionRequirement struct {
 	Kind      string `json:"kind" yaml:"kind"`
 	Name      string `json:"name" yaml:"name"`
@@ -15,6 +17,8 @@ type ProtectionRequirement struct {
 	Reason    string `json:"reason" yaml:"reason"`
 }
 
+// AdmissionReview is a structured report evaluating the safety of a Kubernetes delete operation.
+// It follows a pattern similar to Kubernetes admission review objects.
 type AdmissionReview struct {
 	Operation           string                  `json:"operation" yaml:"operation"`
 	PolicyVersion       string                  `json:"policyVersion" yaml:"policyVersion"`
@@ -27,14 +31,17 @@ type AdmissionReview struct {
 	ProtectionSatisfied bool                    `json:"protectionSatisfied" yaml:"protectionSatisfied"`
 }
 
+// Enforcer handles the logic for evaluating and enforcing state protection policies for Kubernetes.
 type Enforcer struct {
 	PolicyVersion string
 }
 
+// NewEnforcer creates a new Enforcer with the default policy version.
 func NewEnforcer() Enforcer {
 	return Enforcer{PolicyVersion: AdmissionPolicyVersion}
 }
 
+// ReviewDelete performs a static review of a manifest deletion without checking actual protection state.
 func ReviewDelete(path string) (AdmissionReview, error) {
 	descriptor, err := Discover(path)
 	if err != nil {
@@ -43,6 +50,7 @@ func ReviewDelete(path string) (AdmissionReview, error) {
 	return NewEnforcer().Review(descriptor), nil
 }
 
+// EnforceDelete performs a complete enforcement check for a manifest deletion against a verified protection state.
 func EnforceDelete(path string, protection types.ProtectionState) (AdmissionReview, error) {
 	descriptor, err := Discover(path)
 	if err != nil {
@@ -51,6 +59,7 @@ func EnforceDelete(path string, protection types.ProtectionState) (AdmissionRevi
 	return NewEnforcer().Enforce(descriptor, protection), nil
 }
 
+// Review evaluates the manifest descriptor and returns a review that blocks if stateful resources are found.
 func (e Enforcer) Review(descriptor ManifestDescriptor) AdmissionReview {
 	review := e.baseReview(descriptor)
 	if review.StatefulResources == 0 {
@@ -71,6 +80,8 @@ func (e Enforcer) Review(descriptor ManifestDescriptor) AdmissionReview {
 	return review
 }
 
+// Enforce evaluates the manifest descriptor against a provided protection state.
+// It allows the operation only if all stateful resources have verified, non-degraded protection.
 func (e Enforcer) Enforce(descriptor ManifestDescriptor, protection types.ProtectionState) AdmissionReview {
 	review := e.baseReview(descriptor)
 	review.Protection = protection

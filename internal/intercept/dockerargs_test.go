@@ -51,6 +51,22 @@ func TestParseDockerSystemPrune(t *testing.T) {
 	}
 }
 
+func TestParseDockerRemove(t *testing.T) {
+	plan, err := ParseDockerArgs([]string{"rm", "-v", "c1", "c2"})
+	if err != nil {
+		t.Fatalf("parse docker args: %v", err)
+	}
+	if plan.Operation != OpDockerRemove {
+		t.Fatalf("unexpected operation: %#v", plan)
+	}
+	if !plan.WithVolumes {
+		t.Fatalf("expected with-volumes to be true")
+	}
+	if len(plan.Targets) != 2 || plan.Targets[0] != "c1" || plan.Targets[1] != "c2" {
+		t.Fatalf("unexpected targets: %#v", plan.Targets)
+	}
+}
+
 func TestParseDockerVolumeRemoveRequiresTargets(t *testing.T) {
 	if _, err := ParseDockerArgs([]string{"volume", "rm", "-f"}); err == nil {
 		t.Fatal("expected error for missing targets")

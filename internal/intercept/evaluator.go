@@ -14,6 +14,7 @@ const (
 	OpComposeDown            Operation = "compose.down"
 	OpComposeDownWithVolumes Operation = "compose.down.volumes"
 	OpComposeUp              Operation = "compose.up"
+	OpDockerRemove           Operation = "docker.remove"
 	OpDockerVolumeRemove     Operation = "docker.volume.remove"
 	OpDockerSystemPrune      Operation = "docker.system.prune"
 )
@@ -88,6 +89,23 @@ func (e Evaluator) EvaluateDockerArgs(ctx context.Context, plan DockerArgsPlan) 
 	switch plan.Operation {
 	case OpComposeDown, OpComposeDownWithVolumes, OpComposeUp:
 		return e.EvaluateComposeOperation(ctx, plan)
+	case OpDockerRemove:
+		reason := "docker rm is a host-global destructive operation and cannot be auto-executed without container-to-project mapping"
+		warnings := []string{"container removal is not mapped to a compose project"}
+		if plan.WithVolumes {
+			reason += "; with-volumes flag detected which may destroy persistent storage"
+			warnings = append(warnings, "anonymous volumes may be destroyed")
+		}
+		return Result{
+			Allowed:       false,
+			Operation:     plan.Operation,
+			Scope:         "host-global",
+			Targets:       append([]string(nil), plan.Targets...),
+			Flags:         append([]string(nil), plan.Flags...),
+			Reason:        reason,
+			Warnings:      warnings,
+			ProtectionRun: false,
+		}, nil
 	case OpDockerVolumeRemove:
 		return Result{
 			Allowed:       false,

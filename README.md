@@ -2,7 +2,7 @@
 
 Stateguard is an open-source state protection platform for destructive infrastructure operations.
 
-It protects stateful workloads before commands like `docker compose down`, `docker compose down -v`, `docker rm`, `docker volume rm`, `docker system prune`, and later Kubernetes delete or uninstall flows.
+It protects stateful workloads before commands like `docker compose down`, `docker compose down -v`, `docker rm`, `docker rm -v`, `docker volume rm`, `docker system prune`, and later Kubernetes delete or uninstall flows.
 
 ## Why Stateguard Exists
 
@@ -167,7 +167,7 @@ Current adapter-wave improvements:
 Current completion-wave improvements:
 
 - concrete live execution plans and persisted restore semantics now also exist for `MySQL`, `MongoDB`, and `Kafka`
-- raw Docker argument interception can now parse and evaluate `docker compose ...`, `docker volume rm`, and `docker system prune` intent
+- raw Docker argument interception can now parse and evaluate `docker compose ...`, `docker rm`, `docker rm -v`, `docker volume rm`, and `docker system prune` intent
 - Kubernetes now has protect and enforce-delete flows, not only inspect and guard-delete
 - release automation scaffolding now includes `.goreleaser.yaml`, a GitHub release workflow, and a manual validation checklist
 - release validation now checks `goreleaser check` plus installer validation wrappers before publishing

@@ -19,6 +19,19 @@ func ParseDockerArgs(args []string) (DockerArgsPlan, error) {
 	if args[0] == "compose" {
 		return parseComposeArgs(args[1:])
 	}
+	if len(args) >= 2 && args[0] == "rm" {
+		targets, flags := splitDockerFlagsAndTargets(args[1:])
+		withVolumes := containsFlag(flags, "-v") || containsFlag(flags, "--volumes")
+		if len(targets) == 0 {
+			return DockerArgsPlan{}, fmt.Errorf("docker rm requires at least one target container")
+		}
+		return DockerArgsPlan{
+			Operation:   OpDockerRemove,
+			Targets:     targets,
+			Flags:       flags,
+			WithVolumes: withVolumes,
+		}, nil
+	}
 	if len(args) >= 2 && args[0] == "volume" && args[1] == "rm" {
 		targets, flags := splitDockerFlagsAndTargets(args[2:])
 		if len(targets) == 0 {

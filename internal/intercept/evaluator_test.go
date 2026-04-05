@@ -2,6 +2,7 @@ package intercept
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/kusuridheeraj/stateguard/internal/orchestrator"
@@ -55,6 +56,25 @@ func TestEvaluateDockerArgsBlocksRawVolumeRemove(t *testing.T) {
 	}
 	if result.Scope != "host-global" {
 		t.Fatalf("unexpected scope: %#v", result.Scope)
+	}
+}
+
+func TestEvaluateDockerArgsBlocksRawDockerRemove(t *testing.T) {
+	evaluator := Evaluator{Mode: "fail-closed"}
+
+	result, err := evaluator.EvaluateDockerArgs(context.Background(), DockerArgsPlan{
+		Operation:   OpDockerRemove,
+		Targets:     []string{"c1"},
+		WithVolumes: true,
+	})
+	if err != nil {
+		t.Fatalf("evaluate docker args: %v", err)
+	}
+	if result.Allowed {
+		t.Fatalf("expected raw docker remove to be blocked, got %#v", result)
+	}
+	if !strings.Contains(result.Reason, "with-volumes") {
+		t.Fatalf("expected with-volumes warning in reason, got %q", result.Reason)
 	}
 }
 
