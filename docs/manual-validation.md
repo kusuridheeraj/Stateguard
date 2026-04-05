@@ -8,8 +8,10 @@ Use this checklist before calling a build "release candidate".
 2. Run `stateguard protect compose -f examples/windows-wsl2-compose/compose.yaml`.
 3. Confirm bundle directories appear under the configured artifact root.
 4. Run `stateguard intercept compose down -f examples/windows-wsl2-compose/compose.yaml`.
-5. Run `stateguard restore artifact -id <generated-artifact-id>`.
-6. Repeat with `runtime.compose.live_execution: true` for supported adapters.
+5. Run `stateguard intercept docker rm -v stateful-container`.
+6. Confirm the daemon blocks the raw scope and provides warnings.
+7. Run `stateguard restore artifact -id <generated-artifact-id>`.
+8. Repeat with `runtime.compose.live_execution: true` for supported adapters.
 
 ## Kubernetes Beta
 

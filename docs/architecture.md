@@ -50,7 +50,7 @@ The current runtime path now includes:
 - daemon and dashboard API endpoints that expose the same protect, guard, and intercept behavior
 - installer-created wrapper commands that route Compose intent through Stateguard
 - optional live backup execution for Compose workloads when `runtime.compose.live_execution` is enabled
-- raw Docker argument interception for Compose-scoped destructive intent and policy-aware evaluation for `docker volume rm` and `docker system prune`
+- raw Docker argument interception for Compose-scoped destructive intent and policy-aware evaluation for `docker rm`, `docker volume rm`, and `docker system prune`
 - Kubernetes delete enforcement now emits an admission-style review that requires verified protection evidence before allowing stateful deletes
 
 ### Dashboard
