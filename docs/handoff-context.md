@@ -72,6 +72,9 @@ Runtime:
 - dashboard API endpoints mirroring daemon behavior
 - dashboard action panel for daemon-backed actions
 - executable installers for Windows/Linux/macOS with startup registration and Compose wrapper generation
+- installer validation wrappers under `install/validation/*` that run installers in `validate-only` mode
+- GitHub Actions `install-validation.yml` workflow that builds release binaries and exercises installer validation on Windows, Linux, and macOS
+- release workflow now runs `goreleaser check` before publishing
 
 Artifacts:
 
@@ -206,6 +209,7 @@ This is not yet a production-ready v1. Main gaps:
 - no true PITR orchestration yet
 - restore execution is bundle-validated, not full service replay/bring-up across all adapters
 - install/package publishing is not finished
+- installer validation is now executable and release validation is wired into CI, but real target validation still needs to be run on disposable hosts
 
 ## Immediate Next Priorities
 

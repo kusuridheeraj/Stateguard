@@ -17,3 +17,8 @@ The installer scripts under [install](../install/README.md) are now executable a
 - `winget/stateguard.yaml` tracks Windows package metadata
 
 These files still need release-versioned checksums and distribution URLs before public publishing, but they are aligned with the current installer contract rather than placeholder-only scaffolds.
+
+Release validation now has two layers:
+
+- `install/validation/*` scripts exercise the installers in `validate-only` mode without mutating host services
+- `.github/workflows/install-validation.yml` and the release workflow validate the packaging contract before publication

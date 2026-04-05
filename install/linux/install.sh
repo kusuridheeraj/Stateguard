@@ -2,9 +2,42 @@
 set -eu
 
 SOURCE_ROOT="${SOURCE_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)}"
+VALIDATE_ONLY="${VALIDATE_ONLY:-0}"
+INSTALL_ROOT_INPUT="${INSTALL_ROOT:-}"
+CONFIG_ROOT_INPUT="${CONFIG_ROOT:-}"
+ARTIFACT_ROOT_INPUT="${ARTIFACT_ROOT:-}"
+
+for arg in "$@"; do
+  case "$arg" in
+    --validate-only)
+      VALIDATE_ONLY=1
+      ;;
+    *)
+      echo "unknown argument: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$VALIDATE_ONLY" = "1" ]; then
+  VALIDATION_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/stateguard-install.XXXXXX")"
+  trap 'rm -rf "$VALIDATION_ROOT"' EXIT
+fi
+
 INSTALL_ROOT="${INSTALL_ROOT:-/opt/stateguard}"
 CONFIG_ROOT="${CONFIG_ROOT:-/etc/stateguard}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/var/lib/stateguard/artifacts}"
+if [ "$VALIDATE_ONLY" = "1" ]; then
+  if [ -z "$INSTALL_ROOT_INPUT" ]; then
+    INSTALL_ROOT="$VALIDATION_ROOT/install"
+  fi
+  if [ -z "$CONFIG_ROOT_INPUT" ]; then
+    CONFIG_ROOT="$VALIDATION_ROOT/config"
+  fi
+  if [ -z "$ARTIFACT_ROOT_INPUT" ]; then
+    ARTIFACT_ROOT="$CONFIG_ROOT/artifacts"
+  fi
+fi
 BIN_ROOT="$INSTALL_ROOT/bin"
 DIST_ROOT="$SOURCE_ROOT/dist/linux"
 DAEMON_SRC="$DIST_ROOT/stateguardd"
@@ -77,6 +110,21 @@ cat >"$WRAPPER_DST" <<EOF
 exec "$CLI_DST" intercept compose "\$@"
 EOF
 chmod 0755 "$WRAPPER_DST"
+
+if [ "$VALIDATE_ONLY" = "1" ]; then
+  [ -f "$DAEMON_DST" ]
+  [ -f "$CLI_DST" ]
+  [ -f "$API_DST" ]
+  [ -f "$CONFIG_PATH" ]
+  [ -f "$WRAPPER_DST" ]
+  grep -q 'policy:' "$CONFIG_PATH"
+  grep -q 'validation:' "$CONFIG_PATH"
+  grep -q 'runtime:' "$CONFIG_PATH"
+  grep -q 'project_boundary: labels+compose_project' "$CONFIG_PATH"
+  echo "Validation only mode: installer outputs verified without writing systemd units."
+  echo "Validation root: $VALIDATION_ROOT"
+  exit 0
+fi
 
 cat >/etc/systemd/system/stateguard-daemon.service <<EOF
 [Unit]

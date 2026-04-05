@@ -22,8 +22,12 @@ Use this checklist before calling a build "release candidate".
 ## Installers
 
 1. Build release binaries into `dist/windows`, `dist/linux`, and `dist/macos`.
-2. Run each platform installer on a disposable target.
-3. Confirm:
+2. Run the validation wrappers first:
+   - `install/validation/windows.ps1`
+   - `install/validation/linux.sh`
+   - `install/validation/macos.sh`
+3. Run each platform installer on a disposable target.
+4. Confirm:
    - binaries are copied
    - `safedata.yaml` is written
    - artifact directory exists
@@ -46,6 +50,7 @@ Use this checklist before calling a build "release candidate".
 ## Release
 
 1. Run `go test ./...`.
-2. Run `goreleaser release --snapshot --clean`.
-3. Confirm archives and checksums are produced.
-4. Validate installer docs and setup docs against generated artifacts.
+2. Run `goreleaser check`.
+3. Run `goreleaser release --snapshot --clean`.
+4. Confirm archives and checksums are produced.
+5. Validate installer docs, setup docs, and `install/validation` against generated artifacts.

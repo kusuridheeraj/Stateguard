@@ -2,10 +2,21 @@ param(
   [string]$SourceRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\\..")).Path,
   [string]$InstallRoot = (Join-Path ${env:ProgramFiles} "Stateguard"),
   [string]$ConfigRoot = (Join-Path ${env:ProgramData} "Stateguard"),
-  [switch]$Force
+  [switch]$Force,
+  [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($ValidateOnly) {
+  $ValidationRoot = Join-Path ([System.IO.Path]::GetTempPath()) "stateguard-validate-$PID"
+  if (-not $PSBoundParameters.ContainsKey("InstallRoot")) {
+    $InstallRoot = Join-Path $ValidationRoot "install"
+  }
+  if (-not $PSBoundParameters.ContainsKey("ConfigRoot")) {
+    $ConfigRoot = Join-Path $ValidationRoot "config"
+  }
+}
 
 $ArtifactRoot = Join-Path $ConfigRoot "artifacts"
 $BinRoot = Join-Path $InstallRoot "bin"
@@ -22,6 +33,21 @@ $ComposeWrapper = Join-Path $BinRoot "stateguard-compose.cmd"
 function Assert-SourceBinary([string]$Path) {
   if (-not (Test-Path $Path)) {
     throw "Expected built binary not found: $Path. Build release binaries into dist\\windows first."
+  }
+}
+
+function Assert-FileExists([string]$Path) {
+  if (-not (Test-Path $Path)) {
+    throw "Expected installer output not found: $Path"
+  }
+}
+
+function Assert-FileContains([string]$Path, [string[]]$Needles) {
+  $Content = Get-Content -Path $Path -Raw
+  foreach ($Needle in $Needles) {
+    if ($Content -notmatch [regex]::Escape($Needle)) {
+      throw "Validation failed: $Path does not contain expected content '$Needle'"
+    }
   }
 }
 
@@ -83,6 +109,23 @@ $apiAction = New-ScheduledTaskAction -Execute $ApiTarget
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+if ($ValidateOnly) {
+  Assert-FileExists $DaemonTarget
+  Assert-FileExists $CliTarget
+  Assert-FileExists $ApiTarget
+  Assert-FileExists $ConfigPath
+  Assert-FileExists $ComposeWrapper
+  Assert-FileContains $ConfigPath @(
+    'policy:'
+    'validation:'
+    'runtime:'
+    'project_boundary: labels+compose_project'
+  )
+  Write-Host "Validation only mode: installer outputs verified without registering startup tasks."
+  Write-Host "Validation root: $ValidationRoot"
+  return
+}
 
 Write-Host "Registering startup tasks..."
 Register-ScheduledTask -TaskName "StateguardDaemon" -Action $daemonAction -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null

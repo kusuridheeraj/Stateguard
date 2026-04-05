@@ -24,6 +24,8 @@ The scripts in this directory are executable installers. They expect prebuilt bi
 
 By default, Compose backup execution metadata is generated in planned mode. Set `runtime.compose.live_execution: true` in `safedata.yaml` when you want the daemon to attempt live backup command execution for supported adapters.
 
+Each installer also supports a `validate-only` mode that writes into temporary roots and verifies the produced layout without registering services or touching host startup state. The validation wrappers in `install/validation` are what CI and manual validation should run first.
+
 ## Expected Install Layout
 
 - configuration: host-managed `safedata.yaml`

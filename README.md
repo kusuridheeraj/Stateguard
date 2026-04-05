@@ -145,6 +145,7 @@ Current Phase 4 capabilities:
 - operator API endpoints for status, overview, adapters, artifacts, scheduler state, and retention preview
 - executable installers for Windows, Linux, and macOS that copy built binaries, write config, and register host startup services
 - package metadata for winget, Homebrew, and Linux package flows
+- installer validation wrappers and validate-only installer modes for release verification
 
 Current Phase 5 capabilities:
 
@@ -169,6 +170,7 @@ Current completion-wave improvements:
 - raw Docker argument interception can now parse and evaluate `docker compose ...`, `docker volume rm`, and `docker system prune` intent
 - Kubernetes now has protect and enforce-delete flows, not only inspect and guard-delete
 - release automation scaffolding now includes `.goreleaser.yaml`, a GitHub release workflow, and a manual validation checklist
+- release validation now checks `goreleaser check` plus installer validation wrappers before publishing
 
 Current enforcement-track improvements:
 

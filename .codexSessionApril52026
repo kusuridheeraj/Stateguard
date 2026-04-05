@@ -48,6 +48,8 @@ What is implemented:
 - Daemon API and dashboard API for protect, restore, guard, intercept, kube delete guard
 - Dashboard action panel wired to daemon-backed endpoints
 - Executable installers for Windows/Linux/macOS with service registration and safe Compose wrapper generation
+- Installer validation wrappers under `install/validation/*` that exercise installers in `validate-only` mode
+- GitHub Actions installer validation workflow plus a release workflow that checks goreleaser config before publishing
 
 Artifact/bundle behavior:
 - Bundles now contain:
@@ -138,6 +140,7 @@ Most recent pushed commits:
 Release hardening added:
 - .goreleaser.yaml
 - .github/workflows/release.yml
+- .github/workflows/install-validation.yml
 - docs/manual-validation.md
 
 Still not production-ready:
@@ -146,6 +149,7 @@ Still not production-ready:
 - No remote artifact storage yet
 - Release packaging is scaffolded/hardened but not battle-tested on real release tags yet
 - No full disaster-recovery workflows yet
+- Installer validation exists now, but real disposable-host validation is still needed before packaging is proven
 
 Immediate next priorities:
 1. Add more end-to-end protect/intercept/restore tests against live services

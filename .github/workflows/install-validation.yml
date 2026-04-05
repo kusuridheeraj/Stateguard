@@ -1,0 +1,54 @@
+name: install-validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate-installers:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            dist_dir: dist/linux
+            validate_script: install/validation/linux.sh
+          - os: windows-latest
+            dist_dir: dist/windows
+            validate_script: install/validation/windows.ps1
+          - os: macos-latest
+            dist_dir: dist/macos
+            validate_script: install/validation/macos.sh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build release binaries
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "${{ matrix.dist_dir }}" | Out-Null
+          go build -o "${{ matrix.dist_dir }}\stateguard.exe" ./cmd/cli
+          go build -o "${{ matrix.dist_dir }}\stateguardd.exe" ./cmd/daemon
+          go build -o "${{ matrix.dist_dir }}\stateguard-dashboard-api.exe" ./cmd/dashboard-api
+      - name: Build release binaries
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p "${{ matrix.dist_dir }}"
+          go build -o "${{ matrix.dist_dir }}/stateguard" ./cmd/cli
+          go build -o "${{ matrix.dist_dir }}/stateguardd" ./cmd/daemon
+          go build -o "${{ matrix.dist_dir }}/stateguard-dashboard-api" ./cmd/dashboard-api
+      - name: Validate installer contract
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & ".\${{ matrix.validate_script }}"
+      - name: Validate installer contract
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          sh "./${{ matrix.validate_script }}"
