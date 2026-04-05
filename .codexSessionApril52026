@@ -90,14 +90,15 @@ Current interception/completion state:
   - docker compose -f <file> up
   - docker volume rm
   - docker system prune
-- raw volume/system prune is evaluated and explicitly not auto-executed yet because higher-order scope mapping is still needed
+- raw volume/system prune now return structured host-global denials with targets, flags, and warnings preserved
+- raw volume/system prune are intentionally not auto-executed until higher-order scope mapping exists
 
 Current Kubernetes state:
 - inspect
 - protect
 - guard-delete
 - enforce-delete
-- enforce-delete currently runs protection before delete evaluation and returns both artifacts and guard result
+- enforce-delete currently runs protection before delete evaluation and returns both artifacts and an admission-style review object with verified protection evidence
 
 Config note:
 - runtime.compose.live_execution exists
@@ -145,7 +146,7 @@ Release hardening added:
 
 Still not production-ready:
 - Transparent interception is still Stateguard-controlled, not full Docker socket enforcement
-- Kubernetes is still beta API/CLI enforcement, not admission/controller enforcement
+- Kubernetes is still beta API/CLI enforcement, not in-cluster admission/controller enforcement
 - No remote artifact storage yet
 - Release packaging is scaffolded/hardened but not battle-tested on real release tags yet
 - No full disaster-recovery workflows yet

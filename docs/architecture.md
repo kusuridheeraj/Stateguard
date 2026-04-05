@@ -51,6 +51,7 @@ The current runtime path now includes:
 - installer-created wrapper commands that route Compose intent through Stateguard
 - optional live backup execution for Compose workloads when `runtime.compose.live_execution` is enabled
 - raw Docker argument interception for Compose-scoped destructive intent and policy-aware evaluation for `docker volume rm` and `docker system prune`
+- Kubernetes delete enforcement now emits an admission-style review that requires verified protection evidence before allowing stateful deletes
 
 ### Dashboard
 
@@ -118,7 +119,7 @@ The current execution track now includes concrete manifest generation and valida
 
 The first restore orchestration path is now wired through artifact lookup, adapter selection, and adapter-specific restore validation using the persisted bundle metadata.
 
-Kubernetes support now includes a protect-before-delete enforcement path that generates artifacts for detected stateful resources in a manifest before evaluating delete safety.
+Kubernetes support now includes a protect-before-delete enforcement path that generates artifacts for detected stateful resources in a manifest before evaluating delete safety, then evaluates an admission-style review against verified protection evidence.
 
 ## Hybrid Validation
 
@@ -176,4 +177,4 @@ The dashboard API currently exposes operator-facing endpoints for:
 - Compose protect, guard, and intercept actions
 - Kubernetes beta delete guard
 
-The daemon API now exposes protect, restore, guard, and intercept endpoints for risky Compose operations and a beta guard path for Kubernetes delete flows.
+The daemon API now exposes protect, restore, guard, and intercept endpoints for risky Compose operations and a beta admission-review path for Kubernetes delete flows.

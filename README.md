@@ -177,6 +177,7 @@ Current enforcement-track improvements:
 - first guard/evaluation layer for risky Compose operations
 - daemon endpoint coverage for guard preflight and status surfaces
 - control-plane tests that exercise protection before operation allowance
+- Kubernetes delete enforcement now produces an admission-style review with explicit protection evidence
 
 Current runtime-hardening improvements:
 

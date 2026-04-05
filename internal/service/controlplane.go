@@ -13,6 +13,7 @@ import (
 	"github.com/kusuridheeraj/stateguard/adapters/redis"
 	"github.com/kusuridheeraj/stateguard/adapters/vault"
 	"github.com/kusuridheeraj/stateguard/internal/artifacts"
+	"github.com/kusuridheeraj/stateguard/internal/backupexec"
 	"github.com/kusuridheeraj/stateguard/internal/compose"
 	"github.com/kusuridheeraj/stateguard/internal/config"
 	"github.com/kusuridheeraj/stateguard/internal/intercept"
@@ -44,6 +45,11 @@ type ComposeInterception struct {
 	Command   string             `json:"command" yaml:"command"`
 	Compose   string             `json:"compose" yaml:"compose"`
 	RunResult *compose.RunResult `json:"runResult,omitempty" yaml:"runResult,omitempty"`
+}
+
+type DockerInterceptResult struct {
+	Plan   intercept.DockerArgsPlan `json:"plan" yaml:"plan"`
+	Result intercept.Result         `json:"result" yaml:"result"`
 }
 
 func NewControlPlane(logger *slog.Logger, cfg config.Config, build types.BuildInfo) (*ControlPlane, error) {
@@ -147,29 +153,39 @@ func (c *ControlPlane) RestoreArtifact(ctx context.Context, artifactID string) (
 }
 
 func (c *ControlPlane) GuardComposeOperation(ctx context.Context, path string, operation intercept.Operation) (intercept.Result, error) {
-	return c.interceptor.EvaluateComposeOperation(ctx, path, operation)
+	return c.interceptor.EvaluateComposeOperation(ctx, intercept.DockerArgsPlan{
+		Operation:   operation,
+		ComposePath: path,
+	})
 }
 
-func (c *ControlPlane) InterceptDockerArgs(ctx context.Context, args []string, execute bool) (map[string]any, error) {
+func (c *ControlPlane) InterceptDockerArgs(ctx context.Context, args []string, execute bool) (DockerInterceptResult, error) {
 	plan, err := intercept.ParseDockerArgs(args)
 	if err != nil {
-		return nil, err
+		return DockerInterceptResult{}, err
 	}
+
+	evaluation, err := c.interceptor.EvaluateDockerArgs(ctx, plan)
+	if err != nil {
+		return DockerInterceptResult{Plan: plan, Result: evaluation}, err
+	}
+	if !execute || !evaluation.Allowed {
+		return DockerInterceptResult{Plan: plan, Result: evaluation}, nil
+	}
+
 	switch plan.Operation {
 	case intercept.OpComposeDown, intercept.OpComposeDownWithVolumes:
-		result, err := c.InterceptComposeDown(ctx, plan.ComposePath, plan.WithVolumes, execute)
-		return map[string]any{"plan": plan, "result": result}, err
-	case intercept.Operation("compose.up"):
-		result, err := c.InterceptComposeUp(ctx, plan.ComposePath, plan.Detached, plan.Build, execute)
-		return map[string]any{"plan": plan, "result": result}, err
-	case intercept.OpDockerVolumeRemove, intercept.OpDockerSystemPrune:
-		return map[string]any{
-			"plan":    plan,
-			"allowed": false,
-			"reason":  "raw docker destructive operations require higher-order scope mapping before safe execution; use Compose-scoped interception or explicit platform policy",
-		}, nil
+		runResult, runErr := c.composeRunner.Down(ctx, plan.ComposePath, true, plan.WithVolumes)
+		evaluation.Executed = true
+		evaluation.RunResult = &runResult
+		return DockerInterceptResult{Plan: plan, Result: evaluation}, runErr
+	case intercept.OpComposeUp:
+		runResult, runErr := c.composeRunner.Up(ctx, plan.ComposePath, plan.Detached, plan.Build)
+		evaluation.Executed = true
+		evaluation.RunResult = &runResult
+		return DockerInterceptResult{Plan: plan, Result: evaluation}, runErr
 	default:
-		return map[string]any{"plan": plan}, nil
+		return DockerInterceptResult{Plan: plan, Result: evaluation}, nil
 	}
 }
 
@@ -215,23 +231,43 @@ func (c *ControlPlane) InterceptComposeUp(ctx context.Context, path string, deta
 	return result, err
 }
 
+func (c *ControlPlane) SetComposeRunner(runner compose.Runner) {
+	c.composeRunner = runner
+}
+
+func (c *ControlPlane) SetComposeBackupRunner(runner backupexec.CommandRunner) {
+	c.protector.SetComposeCommandRunner(runner)
+}
+
+func (c *ControlPlane) SetComposeLiveExecution(enabled bool) {
+	c.config.Runtime.Compose.LiveExecution = enabled
+	c.protector.SetComposeLiveExecution(enabled)
+}
+
 func (c *ControlPlane) GuardKubeDelete(path string) (kube.GuardResult, error) {
 	return kube.GuardDelete(path)
 }
 
 func (c *ControlPlane) EnforceKubeDelete(ctx context.Context, path string) (map[string]any, error) {
+	descriptor, err := kube.Discover(path)
+	if err != nil {
+		return nil, err
+	}
+
 	protection, err := c.ProtectKubernetes(ctx, path)
 	if err != nil {
 		return nil, err
 	}
-	guard, err := c.GuardKubeDelete(path)
+
+	review, err := kube.EnforceDelete(path, kubeProtectionState(protection))
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{
+		"descriptor": descriptor,
 		"protection": protection,
-		"guard":      guard,
-		"allowed":    guard.Allowed && protection.Created > 0,
+		"review":     review,
+		"allowed":    review.Decision.Allow,
 	}, nil
 }
 
@@ -241,4 +277,22 @@ func (c *ControlPlane) RunStartupJobs(ctx context.Context) {
 			c.logger.Warn("startup job failed", "job", name, "error", err)
 		}
 	}
+}
+
+func kubeProtectionState(report orchestrator.ProtectReport) types.ProtectionState {
+	state := types.ProtectionState{}
+	if report.Created == 0 {
+		return state
+	}
+
+	state.RecoveryPointExists = true
+	state.IntegrityValidated = true
+	state.RestoreTested = true
+	state.Degraded = false
+	for _, artifact := range report.Artifacts {
+		state.IntegrityValidated = state.IntegrityValidated && artifact.IntegrityValidated
+		state.RestoreTested = state.RestoreTested && artifact.RestoreTested
+		state.Degraded = state.Degraded || artifact.Degraded
+	}
+	return state
 }

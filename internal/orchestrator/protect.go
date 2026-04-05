@@ -48,6 +48,10 @@ func (p *Protector) SetComposeLiveExecution(enabled bool) {
 	p.composeExecutor.ExecuteLive = enabled
 }
 
+func (p *Protector) SetComposeCommandRunner(runner backupexec.CommandRunner) {
+	p.composeExecutor.Runner = runner
+}
+
 func (p *Protector) ProtectCompose(ctx context.Context, path string) (ProtectReport, error) {
 	project, err := compose.Discover(path)
 	if err != nil {

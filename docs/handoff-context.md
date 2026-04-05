@@ -171,7 +171,8 @@ Implemented:
 
 Current limitation:
 
-- raw `docker volume rm` and `docker system prune` are intentionally not auto-executed yet because safe scope mapping is not solved for arbitrary host-level destructive commands
+- raw `docker volume rm` and `docker system prune` now return structured host-global denials with targets, flags, and warnings preserved
+- they are intentionally not auto-executed yet because safe scope mapping is not solved for arbitrary host-level destructive commands
 
 ## Current Kubernetes Enforcement Model
 
@@ -184,7 +185,8 @@ Implemented:
 
 Meaning:
 
-- Stateguard can now generate protection artifacts for stateful resources found in Kubernetes manifests before evaluating delete safety
+- Stateguard now generates protection artifacts for stateful resources found in Kubernetes manifests before evaluating delete safety
+- enforcement uses an admission-style review object with explicit protection evidence and required protections
 - this is still beta CLI/API enforcement, not controller/admission enforcement inside the cluster
 
 ## Testing Status

@@ -7,6 +7,7 @@ import (
 
 	"github.com/kusuridheeraj/stateguard/internal/compose"
 	"github.com/kusuridheeraj/stateguard/internal/config"
+	"github.com/kusuridheeraj/stateguard/internal/kube"
 	"github.com/kusuridheeraj/stateguard/pkg/logging"
 	"github.com/kusuridheeraj/stateguard/pkg/types"
 )
@@ -132,7 +133,65 @@ func TestControlPlaneProtectAndEnforceKubeDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enforce kube delete: %v", err)
 	}
-	if _, ok := enforced["protection"]; !ok {
-		t.Fatalf("expected protection payload, got %#v", enforced)
+	if _, ok := enforced["descriptor"]; !ok {
+		t.Fatalf("expected manifest descriptor payload, got %#v", enforced)
+	}
+	review, ok := enforced["review"].(kube.AdmissionReview)
+	if !ok {
+		t.Fatalf("expected admission review payload, got %#v", enforced)
+	}
+	if !review.Decision.Allow {
+		t.Fatalf("expected admission review to allow protected delete, got %#v", review)
+	}
+	if allowed, _ := enforced["allowed"].(bool); !allowed {
+		t.Fatalf("expected enforced delete to be allowed once protection is verified, got %#v", enforced)
+	}
+}
+
+func TestControlPlaneInterceptDockerArgsBlocksRawVolumeRemove(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	cp, err := NewControlPlane(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new control plane: %v", err)
+	}
+
+	result, err := cp.InterceptDockerArgs(context.Background(), []string{"volume", "rm", "-f", "cache-a"}, false)
+	if err != nil {
+		t.Fatalf("intercept docker args: %v", err)
+	}
+	if result.Result.Allowed {
+		t.Fatalf("expected raw volume remove to be blocked, got %#v", result)
+	}
+	if result.Result.Scope != "host-global" {
+		t.Fatalf("expected host-global scope, got %#v", result.Result.Scope)
+	}
+	if len(result.Result.Targets) != 1 || result.Result.Targets[0] != "cache-a" {
+		t.Fatalf("unexpected targets: %#v", result.Result.Targets)
+	}
+}
+
+func TestControlPlaneInterceptDockerArgsBlocksSystemPrune(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	cp, err := NewControlPlane(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new control plane: %v", err)
+	}
+
+	result, err := cp.InterceptDockerArgs(context.Background(), []string{"system", "prune", "--volumes"}, false)
+	if err != nil {
+		t.Fatalf("intercept docker args: %v", err)
+	}
+	if result.Result.Allowed {
+		t.Fatalf("expected system prune to be blocked, got %#v", result)
+	}
+	if result.Result.Scope != "host-global" {
+		t.Fatalf("expected host-global scope, got %#v", result.Result.Scope)
+	}
+	if len(result.Result.Warnings) == 0 {
+		t.Fatalf("expected prune warnings, got %#v", result.Result)
 	}
 }

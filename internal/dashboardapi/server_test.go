@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/kusuridheeraj/stateguard/internal/config"
@@ -286,5 +287,77 @@ func TestDaemonProtectKubeAndInterceptDockerEndpoints(t *testing.T) {
 	server.Handler().ServeHTTP(recIntercept, reqIntercept)
 	if recIntercept.Code != http.StatusOK {
 		t.Fatalf("expected docker intercept 200, got %d body=%s", recIntercept.Code, recIntercept.Body.String())
+	}
+}
+
+func TestDaemonEnforceKubeDeleteEndpointReturnsAdmissionReview(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("unable to resolve current file path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", ".."))
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("chdir repo root: %v", err)
+	}
+	defer func() { _ = os.Chdir(previous) }()
+
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	server, err := NewServer(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/daemon/enforce/kube-delete?path=examples/kubernetes-beta/manifests.yaml", nil)
+	rec := httptest.NewRecorder()
+	server.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if body := rec.Body.String(); !strings.Contains(body, `"review"`) {
+		t.Fatalf("expected review payload in body, got %s", body)
+	}
+}
+
+func TestDaemonInterceptDockerSystemPruneEndpointBlocksRawScope(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("unable to resolve current file path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", ".."))
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("chdir repo root: %v", err)
+	}
+	defer func() { _ = os.Chdir(previous) }()
+
+	cfg := config.Default()
+	cfg.Storage.Local.Path = filepath.Join(t.TempDir(), "artifacts")
+
+	server, err := NewServer(logging.New(logging.Config{}), cfg, types.BuildInfo{Name: "stateguard"})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/daemon/intercept/docker?arg=system&arg=prune&arg=--volumes", nil)
+	rec := httptest.NewRecorder()
+	server.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "host-global") || !strings.Contains(rec.Body.String(), "prune") {
+		t.Fatalf("expected host-global prune response, got %s", rec.Body.String())
 	}
 }

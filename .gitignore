@@ -37,4 +37,6 @@ Thumbs.db
 # Local state
 .tmp/
 .cache/
+.gocache/
+.gomodcache/
 .artifacts/

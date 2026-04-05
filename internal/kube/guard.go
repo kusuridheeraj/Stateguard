@@ -1,7 +1,5 @@
 package kube
 
-import "fmt"
-
 type GuardResult struct {
 	Allowed           bool                 `json:"allowed" yaml:"allowed"`
 	Reason            string               `json:"reason" yaml:"reason"`
@@ -10,21 +8,15 @@ type GuardResult struct {
 }
 
 func GuardDelete(path string) (GuardResult, error) {
-	descriptor, err := Discover(path)
+	review, err := ReviewDelete(path)
 	if err != nil {
 		return GuardResult{}, err
 	}
 
-	allowed := descriptor.StatefulResources == 0
-	reason := "no stateful Kubernetes resources detected"
-	if !allowed {
-		reason = fmt.Sprintf("stateful Kubernetes resources detected; beta enforcement requires explicit protection before delete")
-	}
-
 	return GuardResult{
-		Allowed:           allowed,
-		Reason:            reason,
-		StatefulResources: descriptor.StatefulResources,
-		Resources:         descriptor.Resources,
+		Allowed:           review.Decision.Allow,
+		Reason:            review.Decision.Reason,
+		StatefulResources: review.StatefulResources,
+		Resources:         review.Resources,
 	}, nil
 }
