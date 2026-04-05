@@ -4,16 +4,16 @@
 
 We are building Stateguard in public: an open-source state protection platform designed to prevent accidental data loss from destructive Docker Compose and Kubernetes operations.
 
-The problem is simple and painful: teams often rebuild application environments confidently while assuming persistence is configured correctly, until one command proves otherwise.
+The problem is simple and painful: teams often rebuild application environments confidently while assuming persistence is configured correctly, until one command like `docker rm` or `docker compose down -v` proves otherwise.
 
-Stateguard is focused on making that failure mode visible, enforceable, and recoverable.
+Stateguard is focused on making that failure mode visible, enforceable, and recoverable with a fail-closed safety model.
 
 ## X / Twitter
 
 1. We are building `Stateguard`, an open-source state protection platform for destructive Docker Compose + Kubernetes operations.
 2. The problem: everyone assumes persistence is configured correctly until `down`, `rm`, or cleanup commands prove otherwise.
 3. Current direction: daemon + CLI + dashboard + adapter registry + protection orchestration.
-4. Compose is the stable first path. Kubernetes ships as beta.
+4. Fail-closed safety: if verified protection doesn't exist, we block the command.
 5. Building in public at github.com/kusuridheeraj/Stateguard
 
 ## Reddit

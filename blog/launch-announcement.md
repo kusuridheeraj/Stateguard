@@ -7,6 +7,7 @@ It exists for the very common failure mode where teams rebuild containers confid
 ## What the first public release includes
 
 - stable Docker Compose support for Windows/WSL2, Linux, and macOS
+- raw Docker argument interception for `down`, `rm`, `volume rm`, and `system prune`
 - Kubernetes support as beta
 - host daemon, CLI, dashboard API, and web console
 - adapter registry for core stateful services
